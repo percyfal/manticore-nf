@@ -1,0 +1,4 @@
+- name: Generate coverage profiles
+  command: nextflow run main.nf -profile test,coverage
+  files:
+    - path: test.file

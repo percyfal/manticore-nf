@@ -1,0 +1,7 @@
+sample,bam,bai
+YRI-1,https://raw.githubusercontent.com/NBISweden/pgip-data/main/data/ooa-outgroups/YRI-1.bam,https://raw.githubusercontent.com/NBISweden/pgip-data/main/data/ooa-outgroups/YRI-1.bai
+YRI-2,https://raw.githubusercontent.com/NBISweden/pgip-data/main/data/ooa-outgroups/YRI-2.bam,https://raw.githubusercontent.com/NBISweden/pgip-data/main/data/ooa-outgroups/YRI-2.bai
+CEU-1,https://raw.githubusercontent.com/NBISweden/pgip-data/main/data/ooa-outgroups/CEU-1.bam,https://raw.githubusercontent.com/NBISweden/pgip-data/main/data/ooa-outgroups/CEU-1.bai
+CEU-2,https://raw.githubusercontent.com/NBISweden/pgip-data/main/data/ooa-outgroups/CEU-2.bam,https://raw.githubusercontent.com/NBISweden/pgip-data/main/data/ooa-outgroups/CEU-2.bai
+CHB-1,https://raw.githubusercontent.com/NBISweden/pgip-data/main/data/ooa-outgroups/CHB-1.bam,https://raw.githubusercontent.com/NBISweden/pgip-data/main/data/ooa-outgroups/CHB-1.bai
+CHB-2,https://raw.githubusercontent.com/NBISweden/pgip-data/main/data/ooa-outgroups/CHB-2.bam,https://raw.githubusercontent.com/NBISweden/pgip-data/main/data/ooa-outgroups/CHB-2.bai

@@ -2,7 +2,7 @@ process SAMPLESHEET_CHECK {
     tag "$samplesheet"
     label 'process_single'
 
-    conda "conda-forge::python=3.8.3"
+    conda "conda-forge::python=3.8.3 jsonschema"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
         'https://depot.galaxyproject.org/singularity/python:3.8.3' :
         'quay.io/biocontainers/python:3.8.3' }"
@@ -19,7 +19,7 @@ process SAMPLESHEET_CHECK {
 
     script: // This script is bundled with the pipeline, in nf-core/manticore/bin/
     """
-    check_samplesheet.py \\
+    check_samplesheet_v2.py \\
         $samplesheet \\
         samplesheet.valid.csv
 

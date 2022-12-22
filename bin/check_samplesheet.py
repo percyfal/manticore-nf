@@ -1,9 +1,5 @@
 #!/usr/bin/env python
-
-
 """Provide a command line tool to validate and transform tabular samplesheets."""
-
-
 import argparse
 import csv
 import logging
@@ -117,8 +113,10 @@ class RowChecker:
         """
         Assert that the combination of sample name and FASTQ filename is unique.
 
-        In addition to the validation, also rename all samples to have a suffix of _T{n}, where n is the
-        number of times the same sample exist, but with different FASTQ files, e.g., multiple runs per experiment.
+        In addition to the validation, also rename all samples to have
+        a suffix of _T{n}, where n is the number of times the same
+        sample exist, but with different FASTQ files, e.g., multiple
+        runs per experiment.
 
         """
         if len(self._seen) != len(self.modified):
@@ -198,7 +196,7 @@ def check_samplesheet(file_in, file_out):
         # Validate the existence of the expected header columns.
         if not required_columns.issubset(reader.fieldnames):
             req_cols = ", ".join(required_columns)
-            logger.critical(f"The sample sheet **must** contain these column headers: {req_cols}.")
+            logger.critical(f"The sample sheet **must** contain these column headers: {req_cols}.")  # noqa: E501
             sys.exit(1)
         # Validate each row.
         checker = RowChecker()
@@ -223,7 +221,7 @@ def parse_args(argv=None):
     """Define and immediately parse command line arguments."""
     parser = argparse.ArgumentParser(
         description="Validate and transform a tabular samplesheet.",
-        epilog="Example: python check_samplesheet.py samplesheet.csv samplesheet.valid.csv",
+        epilog="Example: python check_samplesheet.py samplesheet.csv samplesheet.valid.csv",  # noqa: E501
     )
     parser.add_argument(
         "file_in",

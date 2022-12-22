@@ -12,17 +12,64 @@
                 "pattern": "^\\S+$",
                 "errorMessage": "Sample name must be provided and cannot contain spaces"
             },
-            "fastq_1": {
-                "type": "string",
-                "pattern": "^\\S+\\.f(ast)?q\\.gz$",
-                "errorMessage": "FastQ file for reads 1 must be provided, cannot contain spaces and must have extension '.fq.gz' or '.fastq.gz'"
-            },
-            "fastq_2": {
-                "errorMessage": "FastQ file for reads 2 cannot contain spaces and must have extension '.fq.gz' or '.fastq.gz'",
+            "sex": {
+                "errorMessage": "Sex cannot contain spaces",
                 "anyOf": [
                     {
                         "type": "string",
-                        "pattern": "^\\S+\\.f(ast)?q\\.gz$"
+                        "pattern": "^\\S+$"
+                    },
+                    {
+                        "type": "string",
+                        "maxLength": 0
+                    }
+                ]
+            },
+            "population": {
+                "errorMessage": "Population cannot contain spaces",
+                "anyOf": [
+                    {
+                        "type": "string",
+                        "pattern": "^\\S+$"
+                    },
+                    {
+                        "type": "string",
+                        "maxLength": 0
+                    }
+                ]
+            },
+            "bam": {
+                "errorMessage": "BAM file cannot contain spaces and must have extension '.bam'",
+                "anyOf": [
+                    {
+                        "type": "string",
+                        "pattern": "^\\S+\\.bam$"
+                    },
+                    {
+                        "type": "string",
+                        "maxLength": 0
+                    }
+                ]
+            },
+            "bai": {
+                "errorMessage": "BAM index file cannot contain spaces and must have extension '.bai'",
+                "anyOf": [
+                    {
+                        "type": "string",
+                        "pattern": "^\\S+\\.bai$"
+                    },
+                    {
+                        "type": "string",
+                        "maxLength": 0
+                    }
+                ]
+            },
+            "vcf": {
+                "errorMessage": "VCF file for reads 1 cannot contain spaces and must have extension '.vcf' or '.vcf.gz'",
+                "anyOf": [
+                    {
+                        "type": "string",
+                        "pattern": "^\\S+\\.vcf(\\.gz)?$"
                     },
                     {
                         "type": "string",
@@ -31,6 +78,9 @@
                 ]
             }
         },
-        "required": ["sample", "fastq_1"]
+        "required": [
+            "sample",
+            "bam"
+        ]
     }
 }

@@ -36,6 +36,17 @@ jobs:
         with:
           version: "${{ matrix.NXF_VER }}"
 
+      - name: Create Conda environment
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          python-version: 3.9
+          mamba-version: "*"
+          channels: conda-forge,defaults
+          channel-priority: true
+
+      - name: Install conda test dependencies
+        run: conda install -c conda-forge mamba
+
       - name: Setup test data
         run: |
           git clone --depth 1 https://github.com/NBISweden/pgip-data.git ${GITHUB_WORKSPACE}/data

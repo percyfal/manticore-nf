@@ -11,6 +11,7 @@ on:
 env:
   NXF_ANSI_LOG: false
 
+
 concurrency:
   group: "${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}"
   cancel-in-progress: true
@@ -19,7 +20,7 @@ jobs:
   test:
     name: Run pipeline with test data
     # Only run on push if this is the nf-core dev branch (merged PRs)
-    if: "${{ github.event_name != 'push' || (github.event_name == 'push' && github.repository == 'nf-core/manticore') }}"
+    if: "${{ github.event_name != 'push' || (github.event_name == 'push' && github.repository == 'percyfal/manticore-nf') }}"
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -35,9 +36,11 @@ jobs:
         with:
           version: "${{ matrix.NXF_VER }}"
 
-      - name: Run pipeline with test data
-        # TODO nf-core: You can customise CI pipeline run tests as required
-        # For example: adding multiple test runs with different parameters
-        # Remember that you can parallelise this by using strategy.matrix
+      - name: Setup test data
         run: |
-          nextflow run ${GITHUB_WORKSPACE} -profile test,docker --outdir ./results
+          git clone --depth 1 https://github.com/NBISweden/pgip-data.git ${GITHUB_WORKSPACE}/data
+          cat ${GITHUB_WORKSPACE}/data/data/ooa-outgroups/ooa.chr*.fa > ${GITHUB_WORKSPACE}/data/data/ooa-outgroups/ref.fa
+
+      - name: Run pipeline with test data
+        run: |
+          nextflow run ${GITHUB_WORKSPACE} -profile test,mamba -qs 4 --outdir ./results

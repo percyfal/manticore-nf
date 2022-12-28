@@ -7,3 +7,6 @@ testing/
 testing*
 *.pyc
 /assets/schema_input.yaml
+Makefile
+/nextflow_schema.yaml
+/modules/local/template.nf

@@ -39,7 +39,6 @@ if (params.intervals && !params.intervals.endsWith("bed") && !params.intervals.e
 fasta              = params.fasta              ? Channel.fromPath(params.fasta).collect()                    : Channel.empty()
 fasta_fai          = params.fasta_fai          ? Channel.fromPath(params.fasta_fai).collect()                : Channel.empty()
 
-
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     IMPORT LOCAL/NF-CORE MODULES/SUBWORKFLOWS
@@ -49,7 +48,7 @@ fasta_fai          = params.fasta_fai          ? Channel.fromPath(params.fasta_f
 include { INPUT_CHECK } from '../subworkflows/local/input_check'
 include { PREPARE_GENOME                                 } from '../subworkflows/local/prepare_genome/main'
 include { PREPARE_INTERVALS                              } from '../subworkflows/local/prepare_intervals/main'
-include { MOSDEPTH_CREATE_MASK                              } from '../subworkflows/local/mosdepth_create_mask/main'
+include { MOSDEPTH_COVERAGE                              } from '../subworkflows/local/mosdepth_coverage/main'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -62,6 +61,8 @@ include { MOSDEPTH_CREATE_MASK                              } from '../subworkfl
 //
 include { MULTIQC                     } from '../modules/nf-core/multiqc/main'
 include { CUSTOM_DUMPSOFTWAREVERSIONS } from '../modules/nf-core/custom/dumpsoftwareversions/main'
+include { BEDTOOLS_MASKFASTA_ZERO as BEDTOOLS_MASKFASTA_MAKE_TEMPLATE } from '../modules/local/bedtools/maskfastazero/main'
+
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -97,6 +98,7 @@ workflow MANTICORE {
 
     // Gather built indices and resources
     dict               = params.fasta                   ? params.dict                       ? Channel.fromPath(params.dict).collect()                  : PREPARE_GENOME.out.dict                  : []
+    fasta_fai          = params.fasta                   ? params.fasta_fai                  ? Channel.fromPath(params.fasta_fai).collect()             : PREPARE_GENOME.out.fasta_fai             : []
 
 
     // Build intervals if needed
@@ -107,10 +109,12 @@ workflow MANTICORE {
     intervals                   = PREPARE_INTERVALS.out.intervals_bed        // [interval, num_intervals] multiple interval.bed files, divided by useful intervals for scatter/gather
     intervals_bed_gz_tbi        = PREPARE_INTERVALS.out.intervals_bed_gz_tbi // [interval_bed, tbi, num_intervals] multiple interval.bed.gz/.tbi files, divided by useful intervals for scatter/gather
 
+    // Make template mask file
+    BEDTOOLS_MASKFASTA_MAKE_TEMPLATE(PREPARE_GENOME.out.genome_bed, fasta)
     // Gather used softwares versions
     ch_versions = ch_versions.mix(PREPARE_GENOME.out.versions)
     ch_versions = ch_versions.mix(PREPARE_INTERVALS.out.versions)
-
+    ch_versions = ch_versions.mix(BEDTOOLS_MASKFASTA_MAKE_TEMPLATE.out.versions)
 
     //
     // SUBWORKFLOW: Read in samplesheet, validate and stage input files
@@ -120,14 +124,13 @@ workflow MANTICORE {
     )
     ch_versions = ch_versions.mix(INPUT_CHECK.out.versions)
 
-
-    MOSDEPTH_CREATE_MASK(
+    MOSDEPTH_COVERAGE(
         INPUT_CHECK.out.bams,
         fasta,
         fasta_fai,
-        intervals_bed_combined
+        intervals
     )
-    ch_versions = ch_versions.mix(MOSDEPTH_CREATE_MASK.out.versions.first())
+    ch_versions = ch_versions.mix(MOSDEPTH_COVERAGE.out.versions.first())
 
     CUSTOM_DUMPSOFTWAREVERSIONS (
         ch_versions.unique().collectFile(name: 'collated_versions.yml')

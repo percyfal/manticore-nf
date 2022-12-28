@@ -1,5 +1,6 @@
 include { GATK4_CREATESEQUENCEDICTIONARY         } from '../../../modules/nf-core/gatk4/createsequencedictionary/main'
 include { SAMTOOLS_FAIDX                         } from '../../../modules/nf-core/samtools/faidx/main'
+include { BUILD_INTERVALS as BUILD_INTERVALS_FAIDX      } from '../../../modules/local/build_intervals/main'
 
 workflow PREPARE_GENOME {
     take:
@@ -14,12 +15,16 @@ workflow PREPARE_GENOME {
     GATK4_CREATESEQUENCEDICTIONARY(fasta)
     SAMTOOLS_FAIDX(fasta.map{ it -> [[id:it[0].baseName], it] })
 
+    fasta_fai = SAMTOOLS_FAIDX.out.fai
+    BUILD_INTERVALS_FAIDX(fasta_fai.map{ it -> [[id: "${it[0].id}.mask"], it[1]]})
 
     ch_versions = ch_versions.mix(SAMTOOLS_FAIDX.out.versions)
     ch_versions = ch_versions.mix(GATK4_CREATESEQUENCEDICTIONARY.out.versions)
+    ch_versions = ch_versions.mix(BUILD_INTERVALS_FAIDX.out.versions)
 
     emit:
     dict                             = GATK4_CREATESEQUENCEDICTIONARY.out.dict                               // path: genome.fasta.dict
     fasta_fai                        = SAMTOOLS_FAIDX.out.fai.map{ meta, fai -> [fai] }                      // path: genome.fasta.fai
+    genome_bed                       = BUILD_INTERVALS_FAIDX.out.bed    // path: genome.fasta.bed
     versions                         = ch_versions
 }

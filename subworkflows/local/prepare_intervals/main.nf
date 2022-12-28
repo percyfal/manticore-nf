@@ -10,10 +10,17 @@ include { BUILD_INTERVALS                                     } from '../../../m
 include { CREATE_INTERVALS_BED                                } from '../../../modules/local/create_intervals_bed/main'
 include { GATK4_INTERVALLISTTOBED                             } from '../../../modules/nf-core/gatk4/intervallisttobed/main'
 include { TABIX_BGZIPTABIX as TABIX_BGZIPTABIX_INTERVAL_SPLIT } from '../../../modules/nf-core/tabix/bgziptabix/main'
+include { PARTITION_BED                                       } from '../../../modules/local/partition_bed/main'
+
+// FIXME: bedtools maskfasta to make template mask file with all sites
+// unmasked; subsequent application of bed files *filters* (i.e. sets
+// to 1 or higher) individual sites to ignore in analyses
+// include { BEDTOOLS_MASKFASTA as BEDTOOLS_MASKFASTA_TEMPLATE                                       } from '../../../modules/nf-core/bedtools/maskfasta/main'
+
 
 workflow PREPARE_INTERVALS {
     take:
-        fasta_fai // channel: [mandatory] fasta_fai
+    fasta_fai // channel: [mandatory] fasta_fai
 
     main:
 
@@ -43,28 +50,33 @@ workflow PREPARE_INTERVALS {
         if (!params.intervals) {
 
             BUILD_INTERVALS(fasta_fai.map{it -> [[id:it.baseName], it]})
-
-            ch_intervals_combined = BUILD_INTERVALS.out.bed
-
-            ch_intervals = CREATE_INTERVALS_BED(ch_intervals_combined.map{meta, path -> path}).bed
-
-            ch_versions = ch_versions.mix(BUILD_INTERVALS.out.versions)
-            ch_versions = ch_versions.mix(CREATE_INTERVALS_BED.out.versions)
+	    ch_intervals_combined = BUILD_INTERVALS.out.bed
+	    ch_versions = ch_versions.mix(BUILD_INTERVALS.out.versions)
+	    if (params.num_intervals == null) {
+		ch_intervals = CREATE_INTERVALS_BED(ch_intervals_combined.map{meta, path -> path}).bed
+		ch_versions = ch_versions.mix(CREATE_INTERVALS_BED.out.versions)
+	    } else {
+		ch_intervals = PARTITION_BED(ch_intervals_combined.map{meta, path -> path}).bed
+		ch_versions = ch_versions.mix(PARTITION_BED.out.versions)
+	    }
 
         } else {
-
-            ch_intervals_combined = Channel.fromPath(file(params.intervals)).map{it -> [[id:it.baseName], it] }
-
-            ch_intervals = CREATE_INTERVALS_BED(file(params.intervals)).bed
-            ch_versions = ch_versions.mix(CREATE_INTERVALS_BED.out.versions)
-
-            //If interval file is not provided as .bed, but e.g. as .interval_list then convert to BED format
-            if(params.intervals.endsWith(".interval_list")) {
+	    ch_intervals_combined = Channel.fromPath(file(params.intervals)).map{it -> [[id:it.baseName], it] }
+	    if (params.num_intervals == null) {
+		ch_intervals = CREATE_INTERVALS_BED(file(params.intervals)).bed
+		ch_versions = ch_versions.mix(CREATE_INTERVALS_BED.out.versions)
+	    } else {
+		ch_intervals = PARTITION_BED(file(params.intervals)).bed
+		ch_versions = ch_versions.mix(PARTITION_BED.out.versions)
+	    }
+	    // If interval file is not provided as .bed, but e.g. as
+	    // .interval_list then convert to BED format; only for
+	    // combined regions
+	    if(params.intervals.endsWith(".interval_list")) {
                 GATK4_INTERVALLISTTOBED(ch_intervals_combined)
                 ch_intervals_combined = GATK4_INTERVALLISTTOBED.out.bed
                 ch_versions = ch_versions.mix(GATK4_INTERVALLISTTOBED.out.versions)
-            }
-
+	    }
         }
 
         // Now for the interval.bed the following operations are done:
@@ -102,6 +114,8 @@ workflow PREPARE_INTERVALS {
         ch_versions = ch_versions.mix(TABIX_BGZIPTABIX_INTERVAL_SPLIT.out.versions)
 
     }
+
+    // BEDTOOLS_MASKFASTA_TEMPLATE(intervals_bed_combined, fasta)
 
     emit:
         intervals_bed               = ch_intervals                                           // path: intervals.bed, num_intervals                        [intervals split for parallel execution]

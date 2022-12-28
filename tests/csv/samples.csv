@@ -1,7 +1,7 @@
 sample,bam,bai
-YRI-1,data/data/ooa-outgroups/YRI-1.bam,data/data/ooa-outgroups/YRI-1.bai
-YRI-2,data/data/ooa-outgroups/YRI-2.bam,data/data/ooa-outgroups/YRI-2.bai
-CEU-1,data/data/ooa-outgroups/CEU-1.bam,data/data/ooa-outgroups/CEU-1.bai
-CEU-2,data/data/ooa-outgroups/CEU-2.bam,data/data/ooa-outgroups/CEU-2.bai
-CHB-1,data/data/ooa-outgroups/CHB-1.bam,data/data/ooa-outgroups/CHB-1.bai
-CHB-2,data/data/ooa-outgroups/CHB-2.bam,data/data/ooa-outgroups/CHB-2.bai
+YRI-1,data/data/ooa-outgroups/YRI-1.ooa.chr22,data/data/ooa-outgroups/YRI-1.ooa.chr22.bai
+YRI-2,data/data/ooa-outgroups/YRI-2.ooa.chr22,data/data/ooa-outgroups/YRI-2.ooa.chr22.bai
+CEU-1,data/data/ooa-outgroups/CEU-1.ooa.chr22,data/data/ooa-outgroups/CEU-1.ooa.chr22.bai
+CEU-2,data/data/ooa-outgroups/CEU-2.ooa.chr22,data/data/ooa-outgroups/CEU-2.ooa.chr22.bai
+CHB-1,data/data/ooa-outgroups/CHB-1.ooa.chr22,data/data/ooa-outgroups/CHB-1.ooa.chr22.bai
+CHB-2,data/data/ooa-outgroups/CHB-2.ooa.chr22,data/data/ooa-outgroups/CHB-2.ooa.chr22.bai

@@ -117,9 +117,7 @@ def parse_args(argv):
         type=int,
         help="number of requested partitions",
     )
-    parser.add_argument(
-        "--greedy", "-g", action="store_true", help="do greedy partition"
-    )
+    parser.add_argument("--greedy", "-g", action="store_true", help="do greedy partition")
     parser.add_argument(
         "-l",
         "--log-level",
@@ -156,12 +154,9 @@ def main(argv=None):
 
     out = func(intervals, args.npartitions)
 
-    assert (
-        len(out) == args.npartitions
-    ), "total number of output partitions less than requested"
+    assert len(out) == args.npartitions, "total number of output partitions less than requested"
     assert cumsum(out) == bin_length(intervals), (
-        "total bin length not equal to input bed length"
-        f"{cumsum(out)} != {bin_length(intervals)}"
+        "total bin length not equal to input bed length" f"{cumsum(out)} != {bin_length(intervals)}"
     )
     for partition in out:
         fn = args.output_prefix / f"{repr(partition[0])}.bed"

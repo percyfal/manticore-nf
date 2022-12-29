@@ -12,6 +12,7 @@
                 "pattern": "^\\S+$",
                 "errorMessage": "Sample name must be provided and cannot contain spaces"
             },
+
             "sex": {
                 "errorMessage": "Sex cannot contain spaces",
                 "anyOf": [
@@ -78,9 +79,6 @@
                 ]
             }
         },
-        "required": [
-            "sample",
-            "bam"
-        ]
+        "required": ["sample", "bam"]
     }
 }

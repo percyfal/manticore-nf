@@ -33,17 +33,18 @@ Nextflow community!
 1. Calculate coverage distribution from bam files with
    [`mosdepth`](https://github.com/brentp/mosdepth)
 2. Generate sequence masks from coverage information
-3. Calculate genetic variation (pi, theta, S) with
+3. WIP: Calculate genetic variation (pi, theta, S) with
    [`vcftools`](https://vcftools.sourceforge.net/) for different
    sequence masks and window sizes.
-4. Calculate within and between population differentiation statistics
+4. TODO: Calculate within and between population differentiation statistics
    (FST) with [`vcftools`](https://vcftools.sourceforge.net/) for
    user-defined sample set configuration
-5. Make a preliminary principal component analysis (PCA) with
+5. TODO: Make a preliminary principal component analysis (PCA) with
    [`plink`](https://www.cog-genomics.org/plink/2.0/) to assess
    population structure
-6. Estimate admixture components with
+6. TODO: Estimate admixture components with
    [`ADMIXTURE`](https://dalexander.github.io/admixture/index.html)
+7. TODO: Run windowed selection scans (Tajima's D)
 
 ## Quick Start
 

@@ -12,7 +12,8 @@ workflow MOSDEPTH_CREATE_MASK {
     bam                      // channel: [mandatory] meta, bam, bai
     fasta                    // channel: [optional] fasta
     fai                      // channel: [optional] fai
-    intervals
+    intervals                // channel: [optional]
+    sample_sets              // channel: [optional]
 
     main:
     ch_versions = Channel.empty()

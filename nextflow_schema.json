@@ -2,7 +2,6 @@
     "$schema": "http://json-schema.org/draft-07/schema",
     "$id": "https://raw.githubusercontent.com/nf-core/manticore/master/nextflow_schema.json",
     "title": "nf-core/manticore pipeline parameters",
-
     "description": "Population genomics analyses of non-model organisms",
     "type": "object",
     "definitions": {
@@ -116,8 +115,8 @@
                 "intervals": {
                     "type": "string",
                     "fa_icon": "fas fa-file-alt",
-                    "help_text": "Interval file for parallelization. Many tasks can be sped up\nby chopping the analyses into smaller pieces.\n\nThe intervals file is either a .list or a BED file. A .list\nfile contains one', interval per line in the format\n`chromosome:start-end` (1-based, coordinates). A BED file\nmust be a tab-separated text file with one interval per\nline. There must be at least three columns: chromosome,\nstart, and end (0-based coordinates).\n",
-                    "description": "Path to target bed file in case of whole exome or targeted sequencing or intervals file."
+                    "help_text": "Interval file for parallelization. Many tasks can be sped up by chopping the analyses into smaller pieces. The intervals file is either a .list or a BED file. A .list file contains one'', interval per line in the format `chromosome:start-end` (1-based, coordinates). A BED file must be a tab-separated text file with one interval per line. There must be at least three columns: chromosome, start, and end (0-based coordinates). ",
+                    "description": "Path to bed file for parallelization."
                 },
                 "num_intervals": {
                     "type": "integer",
@@ -137,6 +136,20 @@
                     "fa_icon": "fas fa-ban",
                     "description": "Disable usage of intervals.",
                     "help_text": "Intervals are parts of the chopped up genome used to speed up preprocessing and variant calling. See `--intervals` for more info. \n\nIf  `--no_intervals` is set no intervals will be taken into account for speed up or data processing."
+                },
+                "mask": {
+                    "type": "string",
+                    "format": "file-path",
+                    "fa_icon": "fas fa-scale-unbalanced",
+                    "description": "BED4 file that defines regions in which to perform analyses.",
+                    "help_text": "Mask files define regions in which to perform analyses. The\nfile should consist of 4 columns CHROM, BEGIN, END, and\nNAME. The NAME column is used to stratify regions\n(potentially overlapping) to different analyses. For\ninstance, NAME=exon could define exons, whereas NAME=4d\ncould define four-fold degenerate sites that reside within\nexons.\n"
+                },
+                "windowed_mask": {
+                    "type": "string",
+                    "format": "file-path",
+                    "fa_icon": "fas fa-scale-unbalanced",
+                    "description": "BED4 file that defines regions in which to perform window-based analyses.",
+                    "help_text": "See `--mask` for more information."
                 }
             }
         },

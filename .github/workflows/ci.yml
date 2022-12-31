@@ -26,7 +26,7 @@ jobs:
       matrix:
         NXF_VER:
           - "22.10.1"
-          - "latest-everything"
+          # - "latest-everything"
     steps:
       - name: Check out pipeline code
         uses: actions/checkout@v3
@@ -41,7 +41,7 @@ jobs:
         with:
           python-version: 3.9
           mamba-version: "*"
-          channels: conda-forge,defaults
+          channels: conda-forge,bioconda,defaults
           channel-priority: true
 
       - name: Setup test data
@@ -51,4 +51,4 @@ jobs:
 
       - name: Run pipeline with test data
         run: |
-          nextflow run ${GITHUB_WORKSPACE} -profile test,mamba -qs 4 --outdir ./results
+          nextflow run ${GITHUB_WORKSPACE} -profile test,mamba -qs 2 --outdir ./results

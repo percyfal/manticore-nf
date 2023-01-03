@@ -1,69 +1,45 @@
 //
 // MOSDEPTH_COVERAGE
 //
-// Summarize coverage with mosdepth and d4tools. NB! mosdepth per-base
-// coverage *always* outputs the entire genome, so we cannot partition
-// on intervals here.
+// Summarize coverage with mosdepth and d4tools for all samplesets.
+// NB! mosdepth per-base coverage *always* outputs the entire genome,
+// so we cannot partition on intervals here.
 //
 
 include { MOSDEPTH                    } from '../../../modules/nf-core/mosdepth/main'
-include { D4TOOLS_MERGE                     } from '../../../modules/local/d4tools/merge/main'
-// include { D4_SUM_COVERAGE                     } from '../../../modules/local/d4_sum_coverage/main'
-// include { TABIX_BGZIPTABIX as TABIX_BGZIPTABIX_D4_SUM } from '../../../modules/nf-core/tabix/bgziptabix/main'
+include { BEDTOOLS_UNIONBEDG          } from '../../../modules/local/bedtools/unionbedg/main'
+include { TABIX_BGZIPTABIX as TABIX_BGZIPTABIX_UNIONBEDG } from '../../../modules/nf-core/tabix/bgziptabix/main'
 
 workflow MOSDEPTH_COVERAGE {
     take:
     bam                      // channel: [mandatory] meta, bam, bai
+    samplesets               // channel: [mandatory] meta, samples
     fasta                    // channel: [optional] fasta
     fai                      // channel: [optional] fai
-    intervals
+    intervals                // channel: [optional] intervals
+
 
     main:
     ch_versions = Channel.empty()
 
-    bam.view()
-    bam_intervals = bam.combine(intervals)
-	.map{ meta, bam, bai, intervals, num_intervals ->
-	    intervals_new = num_intervals == 0 ? [] : intervals
 
-	    [intervals_new]
+    MOSDEPTH(bam, intervals, fasta)
+    // Convert samplesets to length 12: map mosdepth output to join to
+    // samplesets output and then group by tuple
+    bed = MOSDEPTH.out.per_base_bed.map{
+	[it[0].id, it[1]]
+    }.cross(
+	samplesets.map{it -> it[1].collect{key -> [key, it[0].id]}}.flatten().collate(2)
+    ).map{[[id:it[1][1]], it[1][0], it[0][1]]}
+	.groupTuple()
+	.map{
+	    [[id:it[0].id, samples:it[1]], it[2]]
 	}
-    bam_intervals.view()
-    mosdepth_bams = bam.combine(intervals)
-	.map {meta, bam, bai, intervals, num_intervals ->
-	    basename = intervals.name
-	    [[
-	     	data_type: meta.data_type,
-	     	id: "$meta.id-$basename", // Must be unique!
-	     	sample: meta.id,
-		interval: basename,
-		num_intervals: num_intervals,
-	    ], bam, bai]
-	}
+    // Possibly do this by region
+    BEDTOOLS_UNIONBEDG(bed, fai)
+    TABIX_BGZIPTABIX_UNIONBEDG(BEDTOOLS_UNIONBEDG.out.bed)
 
-    MOSDEPTH(mosdepth_bams, bam_intervals, fasta)
-
-    MOSDEPTH.out.per_base_d4.branch{
-	intervals:    it[0].num_intervals > 1
-	no_intervals: it[0].num_intervals <= 1
-    }.set{ mosdepth_d4_branch }
-
-    // This will become prohibitively large for large genomes; need
-    // to use d4utils to iterate over regions
-    D4TOOLS_MERGE(
-	mosdepth_d4_branch.intervals
-	    .map{ meta, d4 ->
-		new_meta = [
-		    id: meta.interval,
-		]
-		label = "$d4:$meta.sample"
-		[new_meta, d4, label]
-	    }.groupTuple()
-    )
-
-    // NB:
     emit:
-    per_base_d4      = MOSDEPTH.out.per_base_d4           // channel: [ val(meta), [ d4 ] ]
-    d4         = D4TOOLS_MERGE.out.d4           // channel: [ val(meta), [ d4 ] ]
+    gz_tbi       = TABIX_BGZIPTABIX_UNIONBEDG.out.gz_tbi
     versions = ch_versions                     // channel: [ versions.yml ]
 }

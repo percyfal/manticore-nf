@@ -81,7 +81,6 @@ include { MOSDEPTH_COVERAGE                            } from '../subworkflows/l
 include { CREATE_COVERAGE_MASKS                        } from '../subworkflows/local/create_coverage_masks/main'
 include { CREATE_MASKS                                 } from '../subworkflows/local/create_masks/main'
 include { VARIANT_SUMMARY                              } from '../subworkflows/local/variant_summary/main'
-include { D4UTILS_SUM                                  } from '../modules/local/d4utils/sum/main'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -155,49 +154,50 @@ workflow MANTICORE {
 
     MOSDEPTH_COVERAGE(
         INPUT_CHECK.out.bams,
+	ch_sample_sets_all,
         fasta,
         fasta_fai,
-        intervals
+	intervals_bed_combined
     )
     ch_versions = ch_versions.mix(MOSDEPTH_COVERAGE.out.versions.first())
 
-    // Apply (multiple) coverage cutoffs to each and every sampleset;
-    // need to make all combinations!
-    d4 = MOSDEPTH_COVERAGE.out.d4
-    D4UTILS_SUM(d4)
-    CREATE_COVERAGE_MASKS(
-	ch_sample_sets_all.combine(d4).map{
-	    [[id: "${it[0].id}-${it[2].id}", min: null, max: null, samples: it[1], interval: it[2].id], it[3]]}.
-	groupTuple()
-    )
-    //
-    // SUBWORKFLOW: CREATE_MASKS: create mask files from input mask and
-    // coverages
-    //
-    // FIXME: Combine masks with coverage cutoffs for all masks; will
-    // generate lots of large genome mask files...
-    CREATE_MASKS (
-	PREPARE_GENOME.out.genome_bed, fasta,
-	ch_roi,
-    )
-    ch_versions = ch_versions.mix(CREATE_MASKS.out.versions.first())
+    // // Apply (multiple) coverage cutoffs to each and every sampleset;
+    // // need to make all combinations!
+    // d4 = MOSDEPTH_COVERAGE.out.d4
+    // D4UTILS_SUM(d4)
+    // CREATE_COVERAGE_MASKS(
+    // 	ch_sample_sets_all.combine(d4).map{
+    // 	    [[id: "${it[0].id}-${it[2].id}", min: null, max: null, samples: it[1], interval: it[2].id], it[3]]}.
+    // 	groupTuple()
+    // )
+    // //
+    // // SUBWORKFLOW: CREATE_MASKS: create mask files from input mask and
+    // // coverages
+    // //
+    // // FIXME: Combine masks with coverage cutoffs for all masks; will
+    // // generate lots of large genome mask files...
+    // CREATE_MASKS (
+    // 	PREPARE_GENOME.out.genome_bed, fasta,
+    // 	ch_roi,
+    // )
+    // ch_versions = ch_versions.mix(CREATE_MASKS.out.versions.first())
 
-    // Expand mask file list to modes and combine with window sizes
-    window_sizes = Channel.of(params.window_sizes.split(","))
-    masks = CREATE_MASKS.out.fasta.map{
-	[[id: "${it[0].id}", bed: "${it[0].bed}"],
-	 it[0].mode,
-	 it[1]]
-    }.transpose(by: 1).map{
-	[[id: it[0].id, bed: it[0].bed, mode: it[1]], it[2]]
-    }.combine(window_sizes).map{
-	[[id: it[0].id, bed: it[0].bed, mode: it[0].mode, window_size: it[0].mode == "window" ? it[2] : null], it[1]]
-    }.unique()
+    // // Expand mask file list to modes and combine with window sizes
+    // window_sizes = Channel.of(params.window_sizes.split(","))
+    // masks = CREATE_MASKS.out.fasta.map{
+    // 	[[id: "${it[0].id}", bed: "${it[0].bed}"],
+    // 	 it[0].mode,
+    // 	 it[1]]
+    // }.transpose(by: 1).map{
+    // 	[[id: it[0].id, bed: it[0].bed, mode: it[1]], it[2]]
+    // }.combine(window_sizes).map{
+    // 	[[id: it[0].id, bed: it[0].bed, mode: it[0].mode, window_size: it[0].mode == "window" ? it[2] : null], it[1]]
+    // }.unique()
 
-    VARIANT_SUMMARY(
-	vcf.map{[[id:"nucleotide_diversity.${vcf.baseName}"], it]},
-	masks
-    )
+    // VARIANT_SUMMARY(
+    // 	vcf.map{[[id:"nucleotide_diversity.${vcf.baseName}"], it]},
+    // 	masks
+    // )
 
     CUSTOM_DUMPSOFTWAREVERSIONS (
         ch_versions.unique().collectFile(name: 'collated_versions.yml')

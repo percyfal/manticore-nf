@@ -7,7 +7,6 @@ workflow PREPARE_GENOME {
         fasta                   // channel: [mandatory] fasta
         fasta_fai               // channel: [optional]  fasta_fai
 
-
     main:
 
     ch_versions = Channel.empty()

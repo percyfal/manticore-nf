@@ -1,0 +1,15 @@
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - click
+  - d4tools
+  - numpy
+  - pandas
+  - python=>3.9
+  - tqdm
+  - pyd4
+  - pip
+  - pip:
+      - pyd4

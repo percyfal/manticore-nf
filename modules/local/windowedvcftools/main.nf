@@ -10,7 +10,6 @@ process WINDOWED_VCFTOOLS {
     input:
     tuple val(meta), path(variant_file)
     tuple val(meta), path(mask)
-    val(window_size)
 
     output:
     tuple val(meta), path("*.vcf")                    , optional:true, emit: vcf
@@ -82,6 +81,7 @@ process WINDOWED_VCFTOOLS {
 
     script:
     def args = task.ext.args ?: ''
+    def window_size = meta.window_size
     def prefix = task.ext.prefix ?: "${meta.id}.${window_size}"
     def args_list = args.tokenize()
 
@@ -103,7 +103,6 @@ process WINDOWED_VCFTOOLS {
         ("$variant_file".endsWith(".vcf.gz")) ? "--gzvcf ${variant_file}" :
         ("$variant_file".endsWith(".bcf")) ? "--bcf ${variant_file}" : ''
 
-    println "vcftools $input_file --out $prefix ${args_list.join(' ')} $window_size --mask $mask"
     """
     vcftools \\
         $input_file \\

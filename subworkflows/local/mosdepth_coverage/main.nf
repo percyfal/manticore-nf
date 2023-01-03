@@ -1,13 +1,15 @@
 //
 // MOSDEPTH_COVERAGE
 //
-// Summarize coverage with mosdepth and d4tools
+// Summarize coverage with mosdepth and d4tools. NB! mosdepth per-base
+// coverage *always* outputs the entire genome, so we cannot partition
+// on intervals here.
 //
 
 include { MOSDEPTH                    } from '../../../modules/nf-core/mosdepth/main'
 include { D4TOOLS_MERGE                     } from '../../../modules/local/d4tools/merge/main'
-include { D4_SUM_COVERAGE                     } from '../../../modules/local/d4_sum_coverage/main'
-include { TABIX_BGZIPTABIX as TABIX_BGZIPTABIX_D4_SUM } from '../../../modules/nf-core/tabix/bgziptabix/main'
+// include { D4_SUM_COVERAGE                     } from '../../../modules/local/d4_sum_coverage/main'
+// include { TABIX_BGZIPTABIX as TABIX_BGZIPTABIX_D4_SUM } from '../../../modules/nf-core/tabix/bgziptabix/main'
 
 workflow MOSDEPTH_COVERAGE {
     take:
@@ -19,13 +21,14 @@ workflow MOSDEPTH_COVERAGE {
     main:
     ch_versions = Channel.empty()
 
+    bam.view()
     bam_intervals = bam.combine(intervals)
 	.map{ meta, bam, bai, intervals, num_intervals ->
 	    intervals_new = num_intervals == 0 ? [] : intervals
 
 	    [intervals_new]
 	}
-
+    bam_intervals.view()
     mosdepth_bams = bam.combine(intervals)
 	.map {meta, bam, bai, intervals, num_intervals ->
 	    basename = intervals.name
@@ -38,15 +41,15 @@ workflow MOSDEPTH_COVERAGE {
 	    ], bam, bai]
 	}
 
-    MOSDEPTH(mosdepth_bams, bam_intervals, fasta).per_base_d4
+    MOSDEPTH(mosdepth_bams, bam_intervals, fasta)
 
     MOSDEPTH.out.per_base_d4.branch{
 	intervals:    it[0].num_intervals > 1
 	no_intervals: it[0].num_intervals <= 1
-
     }.set{ mosdepth_d4_branch }
 
-    // FIXME: new_meta should contain label for sample set
+    // This will become prohibitively large for large genomes; need
+    // to use d4utils to iterate over regions
     D4TOOLS_MERGE(
 	mosdepth_d4_branch.intervals
 	    .map{ meta, d4 ->
@@ -58,12 +61,9 @@ workflow MOSDEPTH_COVERAGE {
 	    }.groupTuple()
     )
 
-    D4_SUM_COVERAGE(D4TOOLS_MERGE.out.d4)
-
-    TABIX_BGZIPTABIX_D4_SUM(D4_SUM_COVERAGE.out.bed)
-
-
+    // NB:
     emit:
-    per_base_d4      = D4TOOLS_MERGE.out.d4           // channel: [ val(meta), [ d4 ] ]
+    per_base_d4      = MOSDEPTH.out.per_base_d4           // channel: [ val(meta), [ d4 ] ]
+    d4         = D4TOOLS_MERGE.out.d4           // channel: [ val(meta), [ d4 ] ]
     versions = ch_versions                     // channel: [ versions.yml ]
 }

@@ -16,7 +16,7 @@ workflow PREPARE_GENOME {
     SAMTOOLS_FAIDX(fasta.map{ it -> [[id:it[0].baseName], it] })
 
     fasta_fai = SAMTOOLS_FAIDX.out.fai
-    BUILD_INTERVALS_FAIDX(fasta_fai.map{ it -> [[id: "${it[0].id}.mask"], it[1]]})
+    BUILD_INTERVALS_FAIDX(fasta_fai.map{ it -> [[id: "${it[0].id}.genome"], it[1]]})
 
     ch_versions = ch_versions.mix(SAMTOOLS_FAIDX.out.versions)
     ch_versions = ch_versions.mix(GATK4_CREATESEQUENCEDICTIONARY.out.versions)

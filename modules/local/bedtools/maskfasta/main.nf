@@ -1,4 +1,4 @@
-process BEDTOOLS_MASKFASTA_ONE {
+process BEDTOOLS_MASKFASTA {
     tag "$meta.id"
     label 'process_single'
 
@@ -21,11 +21,11 @@ process BEDTOOLS_MASKFASTA_ONE {
     script:
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
+
     """
     bedtools \\
         maskfasta \\
         $args \\
-        -mc 1 \\
         -fi $fasta \\
         -bed $bed \\
         -fo ${prefix}.fa

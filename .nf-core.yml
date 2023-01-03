@@ -1,2 +1,9 @@
 # TSrepository_type: pipeline
 repository_type: pipeline
+
+lint:
+  actions_awsfulltest: false
+  pipeline_todos: false
+  multiqc_config: false
+  files_exist:
+    - .github/workflows/branch.yml

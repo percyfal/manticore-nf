@@ -6,12 +6,12 @@
 [![run with conda](http://img.shields.io/badge/run%20with-conda-3EB049?labelColor=000000&logo=anaconda)](https://docs.conda.io/en/latest/)
 [![run with docker](https://img.shields.io/badge/run%20with-docker-0db7ed?labelColor=000000&logo=docker)](https://www.docker.com/)
 [![run with singularity](https://img.shields.io/badge/run%20with-singularity-1d355c.svg?labelColor=000000)](https://sylabs.io/docs/)
+
 <!-- [![Launch on Nextflow Tower](https://img.shields.io/badge/Launch%20%F0%9F%9A%80-Nextflow%20Tower-%234256e7)](https://tower.nf/launch?pipeline=https://github.com/nf-core/manticore) -->
 
 <!-- [![Get help on Slack](http://img.shields.io/badge/slack-nf--core%20%23manticore-4A154B?labelColor=000000&logo=slack)](https://nfcore.slack.com/channels/manticore)[![Follow on Twitter](http://img.shields.io/badge/twitter-%40nf__core-1DA1F2?labelColor=000000&logo=twitter)](https://twitter.com/nf_core)[![Watch on YouTube](http://img.shields.io/badge/youtube-nf--core-FF0000?labelColor=000000&logo=youtube)](https://www.youtube.com/c/nf-core) -->
 
 ## Introduction
-
 
 **nf-core/manticore** is a bioinformatics best-practice analysis
 pipeline for Population genomics analyses of non-model organisms.
@@ -28,23 +28,23 @@ these processes have been submitted to and installed from
 them available to all nf-core pipelines, and to everyone within the
 Nextflow community!
 
-
 ## Pipeline summary
 
 1. Calculate coverage distribution from bam files with
    [`mosdepth`](https://github.com/brentp/mosdepth)
 2. Generate sequence masks from coverage information
-3. Calculate genetic variation (pi, theta, S) with
+3. WIP: Calculate genetic variation (pi, theta, S) with
    [`vcftools`](https://vcftools.sourceforge.net/) for different
    sequence masks and window sizes.
-4. Calculate within and between population differentiation statistics
+4. TODO: Calculate within and between population differentiation statistics
    (FST) with [`vcftools`](https://vcftools.sourceforge.net/) for
    user-defined sample set configuration
-5. Make a preliminary principal component analysis (PCA) with
+5. TODO: Make a preliminary principal component analysis (PCA) with
    [`plink`](https://www.cog-genomics.org/plink/2.0/) to assess
    population structure
-6. Estimate admixture components with
+6. TODO: Estimate admixture components with
    [`ADMIXTURE`](https://dalexander.github.io/admixture/index.html)
+7. TODO: Run windowed selection scans (Tajima's D)
 
 ## Quick Start
 
@@ -71,11 +71,11 @@ Nextflow community!
    >   [nf-core/configs](https://github.com/nf-core/configs#documentation)
    >   to see if a custom config file to run nf-core pipelines already
    >   exists for your Institute. If so, you can simply use `-profile
-   >   <institute>` in your command. This will enable either `docker`
+<institute>` in your command. This will enable either `docker`
    >   or `singularity` and set the appropriate execution settings for
    >   your local compute environment. - If you are using
    >   `singularity`, please use the [`nf-core
-   >   download`](https://nf-co.re/tools/#downloading-pipelines-for-offline-use)
+download`](https://nf-co.re/tools/#downloading-pipelines-for-offline-use)
    >   command to download images first, before running the pipeline.
    >   Setting the [`NXF_SINGULARITY_CACHEDIR` or
    >   `singularity.cacheDir`](https://www.nextflow.io/docs/latest/singularity.html?#singularity-docker-hub)

@@ -11,6 +11,7 @@ process BUILD_INTERVALS {
 
     output:
     tuple val(meta), path("${fasta_fai.baseName}.bed") , emit: bed
+    tuple val(meta), path("${fasta_fai.baseName}.txt") , emit: txt
     path "versions.yml"                                , emit: versions
 
     when:
@@ -19,6 +20,7 @@ process BUILD_INTERVALS {
     script:
     """
     awk -v FS='\t' -v OFS='\t' '{ print \$1, \"0\", \$2 }' ${fasta_fai} > ${fasta_fai.baseName}.bed
+    awk -v FS='\t' -v OFS='\t' '{ print \$1, \$2 }' ${fasta_fai} > ${fasta_fai.baseName}.txt
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

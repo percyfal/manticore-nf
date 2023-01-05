@@ -10,7 +10,7 @@ workflow VARIANT_SUMMARY {
 
     take:
     vcf                // channel. [val(meta), vcf]
-    mask               // channel, [val(meta), mask_bed]
+    mask               // channel, [val(meta), mask_fasta]
 
     main:
 

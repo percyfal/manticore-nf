@@ -25,6 +25,6 @@ workflow PREPARE_GENOME {
     dict                             = GATK4_CREATESEQUENCEDICTIONARY.out.dict                               // path: genome.fasta.dict
     fasta_fai                        = SAMTOOLS_FAIDX.out.fai.map{ meta, fai -> [fai] }                      // path: genome.fasta.fai
     genome_bed                       = BUILD_INTERVALS_FAIDX.out.bed    // path: genome.fasta.bed
-    //genome_txt                       = BUILD_
+    genome_txt                       = BUILD_INTERVALS_FAIDX.out.txt    // path: genome.fasta.bed
     versions                         = ch_versions
 }

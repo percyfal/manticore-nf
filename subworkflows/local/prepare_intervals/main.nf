@@ -12,12 +12,6 @@ include { GATK4_INTERVALLISTTOBED                             } from '../../../m
 include { TABIX_BGZIPTABIX as TABIX_BGZIPTABIX_INTERVAL_SPLIT } from '../../../modules/nf-core/tabix/bgziptabix/main'
 include { PARTITION_BED                                       } from '../../../modules/local/partition_bed/main'
 
-// FIXME: bedtools maskfasta to make template mask file with all sites
-// unmasked; subsequent application of bed files *filters* (i.e. sets
-// to 1 or higher) individual sites to ignore in analyses
-// include { BEDTOOLS_MASKFASTA as BEDTOOLS_MASKFASTA_TEMPLATE                                       } from '../../../modules/nf-core/bedtools/maskfasta/main'
-
-
 workflow PREPARE_INTERVALS {
     take:
     fasta_fai // channel: [mandatory] fasta_fai
@@ -118,8 +112,8 @@ workflow PREPARE_INTERVALS {
     // BEDTOOLS_MASKFASTA_TEMPLATE(intervals_bed_combined, fasta)
 
     emit:
-        intervals_bed               = ch_intervals                                           // path: intervals.bed, num_intervals                        [intervals split for parallel execution]
-        intervals_bed_gz_tbi        = ch_intervals_bed_gz_tbi                                // path: target.bed.gz, target.bed.gz.tbi, num_intervals     [intervals split for parallel execution]
-        intervals_bed_combined      = ch_intervals_combined.map{meta, bed -> bed }.collect() // path: intervals.bed                        [all intervals in one file]
-        versions                    = ch_versions                                            // channel: [ versions.yml ]
+    intervals_bed               = ch_intervals                                           // path: intervals.bed, num_intervals                        [intervals split for parallel execution]
+    intervals_bed_gz_tbi        = ch_intervals_bed_gz_tbi                                // path: target.bed.gz, target.bed.gz.tbi, num_intervals     [intervals split for parallel execution]
+    intervals_bed_combined      = ch_intervals_combined.map{meta, bed -> bed }.collect() // path: intervals.bed                        [all intervals in one file]
+    versions                    = ch_versions                                            // channel: [ versions.yml ]
 }

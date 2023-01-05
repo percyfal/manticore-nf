@@ -162,6 +162,20 @@
                     "pattern": "^\\S+.tsv$",
                     "description": "File defining sample sets (aka populations)",
                     "help_text": "Tab-separated file containing sample set definitions. The\nfirst column corresponds to the sample set name, and the\nsecond column is a comma-separated string of sample names\nbeloning to the sample set. Sample sets can be thought of as\npopulations. Pairwise statistics, such as F_ST, will compare\nall sample sets against each other.\n\nBy default, all samples belong to the \"ALL\" sample set. Not\nthat this sample set is *not* used in pairwise comparisons.\n"
+                },
+                "coverage_min": {
+                    "type": "string",
+                    "fa_icon": "fas fa-scale-unbalanced",
+                    "pattern": "^\\S[\\S,]+\\S+$",
+                    "description": "Minimum coverage cutoff",
+                    "help_text": "Manually set minimal coverage cutoff. Comma-separated string\nof sample_set:coverage key:value pairs to set coverage\nindividually for different sample sets. The keyword 'ALL' is\nreserved for the default sample set consisting of all samples.\n\nA default coverage cutoff is assigned to all sample sets,\ndefined as the range (max(0, mean_coverage - 0.5*sd_coverage),\nmean_coverage + 0.5*sd_coverage).\n"
+                },
+                "coverage_max": {
+                    "type": "string",
+                    "fa_icon": "fas fa-scale-unbalanced",
+                    "pattern": "^\\S[\\S,]+\\S+$",
+                    "description": "Maximim coverage cutoff",
+                    "help_text": "Manually set maximum coverage cutoff. See '--coverage-min'\nfor details on syntax.\n"
                 }
             }
         },

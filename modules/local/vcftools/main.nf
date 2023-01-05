@@ -106,7 +106,6 @@ process VCFTOOLS {
         ("$variant_file".endsWith(".vcf.gz")) ? "--gzvcf ${variant_file}" :
         ("$variant_file".endsWith(".bcf")) ? "--bcf ${variant_file}" : ''
 
-
     """
     vcftools \\
         $input_file \\

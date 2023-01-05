@@ -22,7 +22,7 @@ workflow CREATE_MASKS {
 
     // Add genome_bed to mask_bed list
     mask_bed_combined = mask_bed.mix(genome_bed.map{[[id: "genome", mode: "site"], it[1]]}).mix(genome_bed.map{[[id: "genome", mode: "window"], it[1]]})
-    mask_bed_grouped = mask_bed_combined.groupTuple(by: 1).map{[[id: it[0][0].id, mode: it[0].mode, bed: it[1]], it[1]]}
+    mask_bed_grouped = mask_bed_combined.groupTuple(by: 1).map{meta, bed -> [[id: meta[0].id, mode: meta.mode, bed: bed], bed]}
 
     // Make template mask file with all positions masked
     BEDTOOLS_MASKFASTA_MASKED_TEMPLATE(genome_bed, fasta)
@@ -46,6 +46,7 @@ workflow CREATE_MASKS {
 	    samples: meta.samples,
 	    min: meta.min,
 	    max: meta.max,
+	    roi: bed2
 	]
 	[new_meta, bed, bed2]
     }, "bed")
@@ -59,8 +60,31 @@ workflow CREATE_MASKS {
 
     SEQKIT_SEQ_CONVERT_MULTILINE_FASTA_COVERAGE(BEDTOOLS_MASKFASTA_UNMASK_COVERAGE.out.fasta)
 
+    // Transpose windows to list here.
+    cov_fasta = SEQKIT_SEQ_CONVERT_MULTILINE_FASTA_COVERAGE.out.fasta.map{
+	meta, fasta ->
+	[meta.mode, meta, fasta]
+    }.transpose().map{
+	mode, meta, fasta ->
+	// This is insane. If I do new_meta = meta, new_meta.mode=mode
+	// mode is incorrect?!? Probably need to set new_meta to avoid
+	// concurrency issues?
+	new_meta = [
+	    id: meta.id,
+	    mode: mode,
+	    sampleset_id: meta.sampleset_id,
+	    coverage_id: meta.coverage_id,
+	    samples: meta.samples,
+	    min: meta.min,
+	    max: meta.max,
+	    roi: meta.roi,
+	    window_size: null
+	]
+	[new_meta, fasta]
+    }
+
     emit:
     fasta    = SEQKIT_SEQ_CONVERT_MULTILINE_FASTA.out.fasta           // channel: [ val(meta), fasta  ]
-    cov_fasta = SEQKIT_SEQ_CONVERT_MULTILINE_FASTA_COVERAGE.out.fasta           // channel: [ val(meta), fasta  ]
+    cov_fasta = cov_fasta           // channel: [ val(meta), fasta  ]
     versions = ch_versions                                              // channel: [ versions.yml ]
 }

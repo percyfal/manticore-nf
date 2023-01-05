@@ -266,34 +266,55 @@ workflow MANTICORE {
     ch_versions = ch_versions.mix(CREATE_MASKS.out.versions.first())
 
     // Expand mask file list to modes and combine with window sizes
-    window_sizes = Channel.of(params.window_sizes.split(","))
-    masks = CREATE_MASKS.out.cov_fasta.map{
-	meta, fasta ->
-	new_meta = [
-	    id: meta.id,
-	]
-	[new_meta, meta.mode, fasta]
-    }.transpose(by: 1).map{
-	meta, mode, fasta ->
-	new_meta = [
-	    id: meta.id,
-	    mode: mode
-	]
-	[new_meta, fasta]
-    }.combine(window_sizes).map{
-	meta, fasta, window ->
-	new_meta = [
-	    id: meta.id,
-	    mode: meta.mode,
-	    window_size: meta.mode == "window" ? window : null
-	]
-	[new_meta, fasta]
-    }.unique()
-
+    if (params.window_sizes instanceof Integer) {
+	window_sizes = Channel.of(params.window_sizes)
+    } else {
+	window_sizes = Channel.of(params.window_sizes.split(","))
+    }
+    // All masks have a meta mode variable that is a list of either/or
+    // [site, window]. We cannot use branch as that will select only
+    // one output channel; rather the maskfiles must be transposed on
+    // mode. Transposition should be possible by adding mode as first
+    // element: [mode, meta, fasta]
+    CREATE_MASKS.out.cov_fasta.branch{
+	site: it[0].mode == "site"
+	window: it[0].mode == "window"
+    }.set{masks_set}
+    masks = masks_set.site.mix(
+	masks_set.window.combine(window_sizes).map{
+	    meta, fasta, size ->
+	    new_meta = meta
+	    new_meta.window_size = size
+	    [new_meta, fasta]
+	}
+    )
     VARIANT_SUMMARY(
 	vcf.map{[[id:"nucleotide_diversity.${vcf.baseName}"], it]},
 	masks
     )
+
+    process WRITE_SAMPLESET {
+	tag "$meta.id"
+	label 'process_single'
+
+	input:
+	tuple val(meta), val(samples)
+
+	output:
+	tuple val(meta), path("*.txt"),   emit: txt
+
+	script:
+	"""
+        echo -e '${samples.join("\n")}' > ${meta.id}.txt
+        """
+    }
+
+    // Create sampleset files for vcftools pairs analyses
+    WRITE_SAMPLESET(ch_sample_sets_all)
+    //WRITE_SAMPLESET.out.txt.view()
+    // Need specialized function for pairwise analyses. How to combine
+    // masks? E.g. pop1 vs pop2 - intersect the coverage masks?
+    //masks.view()
 
     CUSTOM_DUMPSOFTWAREVERSIONS (
         ch_versions.unique().collectFile(name: 'collated_versions.yml')

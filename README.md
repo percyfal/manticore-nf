@@ -44,7 +44,7 @@ Nextflow community!
    population structure
 6. TODO: Estimate admixture components with
    [`ADMIXTURE`](https://dalexander.github.io/admixture/index.html)
-7. TODO: Run windowed selection scans (Tajima's D)
+7. WIP: Run windowed selection scans (Tajima's D)
 
 ## Quick Start
 

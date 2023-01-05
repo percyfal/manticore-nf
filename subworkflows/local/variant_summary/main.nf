@@ -5,6 +5,9 @@ include { VCFTOOLS as VCFTOOLS_TSTV_SUMMARY } from '../../../modules/local/vcfto
 
 include { WINDOWED_VCFTOOLS as WINDOWED_VCFTOOLS_TSTV } from '../../../modules/local/windowedvcftools/main'
 include { WINDOWED_VCFTOOLS as WINDOWED_VCFTOOLS_WINDOW_PI } from '../../../modules/local/windowedvcftools/main'
+include { WINDOWED_VCFTOOLS as WINDOWED_VCFTOOLS_TAJIMAS } from '../../../modules/local/windowedvcftools/main'
+
+include { WINDOWED_VCFTOOLS as WINDOWED_VCFTOOLS_TAJIMAS } from '../../../modules/local/windowedvcftools/main'
 
 workflow VARIANT_SUMMARY {
 
@@ -48,6 +51,11 @@ workflow VARIANT_SUMMARY {
     )
 
     WINDOWED_VCFTOOLS_WINDOW_PI (
+	vcf,
+	mask_mode.window
+    )
+
+    WINDOWED_VCFTOOLS_TAJIMAS (
 	vcf,
 	mask_mode.window
     )

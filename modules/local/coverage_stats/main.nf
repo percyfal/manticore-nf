@@ -28,8 +28,8 @@ process COVERAGE_STATS {
         BEGIN  {sum=0; sq=0; total=0;}
         { sum+=\$4 * (\$3 - \$2); sq+=\$4*\$4 * (\$3 - \$2); total+=(\$3 - \$2);}
         END {
-          var=sq/(total) - (sum/total)**2;
-          printf("%i\\t%f\\t%f\\t%f\\n", total, sum/total, var, sqrt(var));
+            var=sq/(total) - (sum/total)**2;
+            printf("%i\\t%f\\t%f\\t%f\\n", total, sum/total, var, sqrt(var));
         }' $bed
     )
     echo -e "records\\tmean\\tvar\\tsd" >$stats

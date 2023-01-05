@@ -23,7 +23,7 @@ process FILTER_COVERAGE {
     def max = meta.max ?: 1e9
     """
     awk  -vFS="\t" -v OFS="\t" '{
-      if (\$4 >= $min && \$4 <= $max) {print }
+        if (\$4 >= $min && \$4 <= $max) {print }
     }' -
 
     cat <<-END_VERSIONS > versions.yml

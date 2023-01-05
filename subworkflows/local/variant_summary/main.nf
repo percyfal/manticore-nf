@@ -8,53 +8,48 @@ include { WINDOWED_VCFTOOLS as WINDOWED_VCFTOOLS_WINDOW_PI } from '../../../modu
 
 workflow VARIANT_SUMMARY {
 
-    // FIXME: better?: let mask consist of [val(meta), mask,
-    // window_size], and if window_size is not "null" then run
-    // windowed analyses (also?)
     take:
     vcf                // channel. [val(meta), vcf]
-    mask               // channel, [val(meta), mask_bed]
-    windowed_mask      // channel,  [val(meta), windowed_mask_bed]
-    windows            // channel, [val(window_size)]
+    mask               // channel, [val(meta), mask_fasta]
 
     main:
 
-    windows.view()
     ch_versions = Channel.empty()
+
+    mask.branch{
+	site: it[0].mode == "site"
+	window: it[0].mode == "window"
+    }.set{mask_mode}
 
     VCFTOOLS_SITE_PI (
 	vcf,
-	mask
+	mask_mode.site
     )
 
     VCFTOOLS_FREQ (
 	vcf,
-	mask
+	mask_mode.site
     )
 
     VCFTOOLS_COUNTS (
 	vcf,
-	mask
+	mask_mode.site
     )
 
 
     VCFTOOLS_TSTV_SUMMARY (
 	vcf,
-	mask
+	mask_mode.site
     )
 
-
-    // Windowed analyses
     WINDOWED_VCFTOOLS_TSTV (
 	vcf,
-	windowed_mask,
-	windows
+	mask_mode.window
     )
 
     WINDOWED_VCFTOOLS_WINDOW_PI (
 	vcf,
-	windowed_mask,
-	windows
+	mask_mode.window
     )
 
     // Only needed once

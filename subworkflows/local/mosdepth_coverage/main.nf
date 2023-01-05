@@ -1,69 +1,80 @@
 //
 // MOSDEPTH_COVERAGE
 //
-// Summarize coverage with mosdepth and d4tools
+// Summarize coverage with mosdepth and d4tools for all samplesets.
+// NB! mosdepth per-base coverage *always* outputs the entire genome,
+// so we cannot partition on intervals here.
 //
 
 include { MOSDEPTH                    } from '../../../modules/nf-core/mosdepth/main'
-include { D4TOOLS_MERGE                     } from '../../../modules/local/d4tools/merge/main'
-include { D4_SUM_COVERAGE                     } from '../../../modules/local/d4_sum_coverage/main'
-include { TABIX_BGZIPTABIX as TABIX_BGZIPTABIX_D4_SUM } from '../../../modules/nf-core/tabix/bgziptabix/main'
+include { BEDTOOLS_UNIONBEDG          } from '../../../modules/local/bedtools/unionbedg/main'
+include { SUM_COVERAGE          } from '../../../modules/local/sum_coverage/main'
+include { COVERAGE_STATS          } from '../../../modules/local/coverage_stats/main'
+include { TABIX_BGZIPTABIX as TABIX_BGZIPTABIX_UNIONBEDG } from '../../../modules/nf-core/tabix/bgziptabix/main'
+include { TABIX_BGZIPTABIX as TABIX_BGZIPTABIX_SUM_COVERAGE } from '../../../modules/nf-core/tabix/bgziptabix/main'
 
 workflow MOSDEPTH_COVERAGE {
     take:
     bam                      // channel: [mandatory] meta, bam, bai
+    samplesets               // channel: [mandatory] meta, samples
     fasta                    // channel: [optional] fasta
     fai                      // channel: [optional] fai
-    intervals
+    genome_txt               // channel: [optional] txt
+    intervals                // channel: [optional] intervals
 
     main:
     ch_versions = Channel.empty()
 
-    bam_intervals = bam.combine(intervals)
-	.map{ meta, bam, bai, intervals, num_intervals ->
-	    intervals_new = num_intervals == 0 ? [] : intervals
 
-	    [intervals_new]
+    MOSDEPTH(bam, intervals, fasta)
+    ch_versions = ch_versions.mix(MOSDEPTH.out.versions)
+    // Convert samplesets list: map mosdepth output to join to
+    // samplesets output and then group by tuple to collect files
+    // related to sampleset
+    bed = MOSDEPTH.out.per_base_bed.map{
+	[it[0].id, it[1]]
+    }.cross(
+	samplesets.map{it -> it[1].collect{key -> [key, it[0].id]}}.flatten().collate(2)
+    ).map{[[id:it[1][1]], it[1][0], it[0][1]]}
+	.groupTuple()
+	.map{
+	    [[id: it[0].id, sampleset_id: it[0].id, samples:it[1]], it[2]]
 	}
+    // FIXME: add possibility to do this by interval scatter-gather
+    BEDTOOLS_UNIONBEDG(bed, fai)
+    ch_versions = ch_versions.mix(BEDTOOLS_UNIONBEDG.out.versions)
+    SUM_COVERAGE(BEDTOOLS_UNIONBEDG.out.bed)
+    COVERAGE_STATS(SUM_COVERAGE.out.bed)
+    ch_versions = ch_versions.mix(SUM_COVERAGE.out.versions)
+    ch_versions = ch_versions.mix(COVERAGE_STATS.out.versions)
 
-    mosdepth_bams = bam.combine(intervals)
-	.map {meta, bam, bai, intervals, num_intervals ->
-	    basename = intervals.name
-	    [[
-	     	data_type: meta.data_type,
-	     	id: "$meta.id-$basename", // Must be unique!
-	     	sample: meta.id,
-		interval: basename,
-		num_intervals: num_intervals,
-	    ], bam, bai]
-	}
+    TABIX_BGZIPTABIX_UNIONBEDG(BEDTOOLS_UNIONBEDG.out.bed.map{[[id:"${it[0].id}.unionbedg", samleset_id: "${it[0].id}", samples:it[0].samples], it[1]]})
+    TABIX_BGZIPTABIX_SUM_COVERAGE(SUM_COVERAGE.out.bed)
+    ch_versions = ch_versions.mix(TABIX_BGZIPTABIX_UNIONBEDG.out.versions)
+    ch_versions = ch_versions.mix(TABIX_BGZIPTABIX_SUM_COVERAGE.out.versions)
 
-    MOSDEPTH(mosdepth_bams, bam_intervals, fasta).per_base_d4
-
-    MOSDEPTH.out.per_base_d4.branch{
-	intervals:    it[0].num_intervals > 1
-	no_intervals: it[0].num_intervals <= 1
-
-    }.set{ mosdepth_d4_branch }
-
-    // FIXME: new_meta should contain label for sample set
-    D4TOOLS_MERGE(
-	mosdepth_d4_branch.intervals
-	    .map{ meta, d4 ->
-		new_meta = [
-		    id: meta.interval,
-		]
-		label = "$d4:$meta.sample"
-		[new_meta, d4, label]
-	    }.groupTuple()
-    )
-
-    D4_SUM_COVERAGE(D4TOOLS_MERGE.out.d4)
-
-    TABIX_BGZIPTABIX_D4_SUM(D4_SUM_COVERAGE.out.bed)
-
+    gz_tbi = TABIX_BGZIPTABIX_UNIONBEDG.out.gz_tbi
+    // For some reason sampleset_id gets converted to sampleset unless
+    // we apply this mapping?!?
+    sum_gz_tbi = TABIX_BGZIPTABIX_SUM_COVERAGE.out.gz_tbi.map{[[id: "${it[0].id}", sampleset_id: it[0].id, samples: it[0].samples], it[1]]}
+    coverage_stats = COVERAGE_STATS.out.stats.map{
+	meta, x ->
+	new_meta = [
+	    id: "${meta.id}.auto",
+	    coverage_id: "auto",
+	    sampleset_id: meta.id,
+	    samples: meta.samples,
+	    nsites: x.split("\t")[0].toInteger(),
+	    mean: x.split("\t")[1].toFloat(),
+	    var: x.split("\t")[2].toFloat(),
+	    sd: x.split("\t")[3].toFloat(),
+	]
+    }
 
     emit:
-    per_base_d4      = D4TOOLS_MERGE.out.d4           // channel: [ val(meta), [ d4 ] ]
+    gz_tbi           = gz_tbi
+    sum_gz_tbi       = sum_gz_tbi
+    stats_txt        = COVERAGE_STATS.out.txt
+    stats        = coverage_stats
     versions = ch_versions                     // channel: [ versions.yml ]
 }

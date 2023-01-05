@@ -1,0 +1,4 @@
+site,tests/resources/exons.bed
+window,tests/resources/utr.bed
+site,tests/resources/intergenic.bed
+window,tests/resources/intergenic.bed

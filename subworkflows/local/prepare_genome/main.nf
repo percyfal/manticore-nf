@@ -7,7 +7,6 @@ workflow PREPARE_GENOME {
         fasta                   // channel: [mandatory] fasta
         fasta_fai               // channel: [optional]  fasta_fai
 
-
     main:
 
     ch_versions = Channel.empty()
@@ -16,7 +15,7 @@ workflow PREPARE_GENOME {
     SAMTOOLS_FAIDX(fasta.map{ it -> [[id:it[0].baseName], it] })
 
     fasta_fai = SAMTOOLS_FAIDX.out.fai
-    BUILD_INTERVALS_FAIDX(fasta_fai.map{ it -> [[id: "${it[0].id}.mask"], it[1]]})
+    BUILD_INTERVALS_FAIDX(fasta_fai.map{ it -> [[id: "${it[0].id}.genome"], it[1]]})
 
     ch_versions = ch_versions.mix(SAMTOOLS_FAIDX.out.versions)
     ch_versions = ch_versions.mix(GATK4_CREATESEQUENCEDICTIONARY.out.versions)
@@ -26,6 +25,6 @@ workflow PREPARE_GENOME {
     dict                             = GATK4_CREATESEQUENCEDICTIONARY.out.dict                               // path: genome.fasta.dict
     fasta_fai                        = SAMTOOLS_FAIDX.out.fai.map{ meta, fai -> [fai] }                      // path: genome.fasta.fai
     genome_bed                       = BUILD_INTERVALS_FAIDX.out.bed    // path: genome.fasta.bed
-    //genome_txt                       = BUILD_
+    genome_txt                       = BUILD_INTERVALS_FAIDX.out.txt    // path: genome.fasta.bed
     versions                         = ch_versions
 }

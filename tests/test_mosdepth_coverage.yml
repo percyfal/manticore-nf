@@ -1,0 +1,6 @@
+- name: mosdepth_coverage
+  command: nextflow run main.nf -profile test,mamba,mosdepth_coverage
+  tags:
+    - input_bam
+    - coverage
+    - mosdepth

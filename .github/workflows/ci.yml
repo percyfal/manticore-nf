@@ -52,4 +52,4 @@ jobs:
 
       - name: Run pipeline with test data
         run: |
-          nextflow run ${GITHUB_WORKSPACE} -profile test,mamba -qs 2 --outdir ./results
+          nextflow run ${GITHUB_WORKSPACE} -profile test,mamba -qs 1 --outdir ./results

@@ -44,6 +44,13 @@ repos:
       - id: prettier
   - repo: local
     hooks:
+      - id: editorconfig-checker
+        name: editorconfig-checker
+        entry: editorconfig-checker
+        language: system
+        pass_filenames: true
+  - repo: local
+    hooks:
       - id: lint
         name: nf-core lint
         entry: nf-core lint

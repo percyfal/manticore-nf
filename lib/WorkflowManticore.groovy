@@ -3,6 +3,14 @@
 //
 
 import groovy.text.SimpleTemplateEngine
+import org.everit.json.schema.Schema
+import org.everit.json.schema.loader.SchemaLoader
+import org.everit.json.schema.ValidationException
+import org.json.JSONObject
+import org.json.JSONTokener
+import org.json.JSONArray
+import groovy.json.JsonSlurper
+import groovy.json.JsonBuilder
 
 class WorkflowManticore {
 
@@ -44,6 +52,31 @@ class WorkflowManticore {
         yaml_file_text        += "data: |\n"
         yaml_file_text        += "${summary_section}"
         return yaml_file_text
+    }
+
+    public static void validateSampleRow(workflow, row, log) {
+        def has_error = false
+        InputStream input_stream = new File("${workflow.projectDir}/assets/schema_input.json").newInputStream()
+        JSONObject raw_schema = new JSONObject(new JSONTokener(input_stream))
+        Schema schema = SchemaLoader.load(raw_schema)
+        def jsonParams = new JsonBuilder(row)
+        JSONObject params_json = new JSONObject(jsonParams.toString())
+        JSONArray params_json_array = new JSONArray()
+        params_json_array.put(params_json)
+        try {
+            schema.validate(params_json_array)
+        } catch (ValidationException e) {
+            println ''
+            log.error 'ERROR: Validation of sample input failed'
+            JSONObject exceptionJSON = e.toJSON()
+            log.error row.toString()
+            log.error(exceptionJSON.toString())
+            println ''
+            has_error = true
+        }
+        if (has_error) {
+            System.exit(1)
+        }
     }
 
     public static String methodsDescriptionText(run_workflow, mqc_methods_yaml) {

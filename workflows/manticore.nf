@@ -29,31 +29,37 @@ def checkPathParamList = [
 */
 for (param in checkPathParamList) { if (param) { file(param, checkIfExists: true) } }
 
-if (params.input) { ch_input = file(params.input) } else { exit 1, 'Input samplesheet not specified!' }
+Channel.fromPath(params.input).splitCsv(header: true, sep: ',')
+    .map{ row ->
+        WorkflowManticore.validateSampleRow(workflow, row, log)
+        create_bam_channel(row)
+    }
+    .set{ch_input}
+
 if (params.intervals && !params.intervals.endsWith("bed") && !params.intervals.endsWith("list")) exit 1, "Intervals file must end with .bed, .list, or .interval_list"
 
 // Process roi_fof file
 if (params.roi_fof) {
     ch_roi = Channel.from(file(params.roi_fof)).splitCsv(header: false, strip: true)
-	.map{ row ->
-	    if (!(row[0] == "site" || row[0] == "window")) {
-		log.error("first column ('${row[0]}') in roi_fof ($params.roi_fof) must be either 'site' or 'window'")
-		System.exit(1)
-	    }
-	    if (!row[1].endsWith("bed")) exit 1, "in ${params.roi_fof}: ${row[1]}: Intervals must be in bed format"
-	    if (!file(row[1], checkIfExists: true)) exit 1, "no such file ${row[1]}"
-	    [[id:file(row[1]).baseName, mode: row[0]], file(row[1])]
-	}
+        .map{ row ->
+            if (!(row[0] == "site" || row[0] == "window")) {
+                log.error("first column ('${row[0]}') in roi_fof ($params.roi_fof) must be either 'site' or 'window'")
+                System.exit(1)
+            }
+            if (!row[1].endsWith("bed")) exit 1, "in ${params.roi_fof}: ${row[1]}: Intervals must be in bed format"
+            if (!file(row[1], checkIfExists: true)) exit 1, "no such file ${row[1]}"
+            [[id:file(row[1]).baseName, mode: row[0]], file(row[1])]
+        }
 } else {
     ch_roi = Channel.empty()
 }
 // Process sample sets file
 if (params.sample_sets) {
     ch_sample_sets = Channel.from(file(params.sample_sets)).splitCsv(sep: "\t", header: false, strip: true)
-	.map{ row ->
-	    if (row[0] == "ALL") exit 1, "in ${params.sample_sets}: 'ALL' is a reserved keyword!"
-	    [[id: row[0]], row[1].split(",")]
-	}
+        .map{ row ->
+            if (row[0] == "ALL") exit 1, "in ${params.sample_sets}: 'ALL' is a reserved keyword!"
+            [[id: row[0]], row[1].split(",")]
+        }
 } else {
     ch_sample_sets = Channel.empty()
 }
@@ -74,11 +80,11 @@ if (params.coverage_max) {
 ch_params_coverage = coverage_min.join(coverage_max, remainder: true).map{
     meta, min, max ->
     new_meta = [
-	id: "${meta.id}.manual",
-	coverage_id: "manual",
-	sampleset_id: meta.id,
-	min: min? min.min:null,
-	max: max? max.max:null,
+        id: "${meta.id}.manual",
+        coverage_id: "manual",
+        sampleset_id: meta.id,
+        min: min? min.min:null,
+        max: max? max.max:null,
     ]
 }
 
@@ -98,7 +104,6 @@ vcf                = params.vcf                ? Channel.fromPath(params.vcf).co
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
-include { INPUT_CHECK                                  } from '../subworkflows/local/input_check'
 include { PREPARE_GENOME                               } from '../subworkflows/local/prepare_genome/main'
 include { PREPARE_INTERVALS                            } from '../subworkflows/local/prepare_intervals/main'
 include { MOSDEPTH_COVERAGE                            } from '../subworkflows/local/mosdepth_coverage/main'
@@ -168,84 +173,78 @@ workflow MANTICORE {
     ch_versions = ch_versions.mix(PREPARE_GENOME.out.versions)
     ch_versions = ch_versions.mix(PREPARE_INTERVALS.out.versions)
 
-    //
-    // SUBWORKFLOW: Read in samplesheet, validate and stage input files
-    //
-    INPUT_CHECK (
-        ch_input
-    )
-    ch_versions = ch_versions.mix(INPUT_CHECK.out.versions)
-    ch_sample_sets_all = ch_sample_sets.mix(INPUT_CHECK.out.bams.map{[[id: "ALL"], it[0].id]}.groupTuple())
+    // Add ALL sample set
+    ch_sample_sets_all = ch_sample_sets.mix(ch_input.map{[[id: "ALL"], it[0].id]}.groupTuple())
     // Create empty coverage channel for all samplesets
     ch_sample_sets_coverage = ch_sample_sets_all.map{
-	meta, samples ->
-	new_meta = [
-	    id: "${meta.id}.auto",
-	    coverage_id: "auto",
-	    sampleset_id: meta.id,
-	    samples: samples,
-	    min: null,
-	    max: null,
-	]
+        meta, samples ->
+        new_meta = [
+            id: "${meta.id}.auto",
+            coverage_id: "auto",
+            sampleset_id: meta.id,
+            samples: samples,
+            min: null,
+            max: null,
+        ]
     }
     // Copy samples to coverage_sets
     ch_coverage_set = ch_params_coverage.map{[[id:it.sampleset_id], it]}.join(ch_sample_sets_coverage.map{[[id:it.sampleset_id], it]}).map{
-	meta, param, sampleset ->
-	new_meta = [
-	    id: param.id,
-	    coverage_id: param.coverage_id,
-	    sampleset_id: param.sampleset_id,
-	    samples: sampleset.samples,
-	    min: param.min,
-	    max: param.max
-	]
+        meta, param, sampleset ->
+        new_meta = [
+            id: param.id,
+            coverage_id: param.coverage_id,
+            sampleset_id: param.sampleset_id,
+            samples: sampleset.samples,
+            min: param.min,
+            max: param.max
+        ]
     }.mix(ch_sample_sets_coverage)
 
     // Summarize coverage for all sample sets. Retrieve mean, var, and
     // sd coverage. Transfer values to auto coverage set.
     MOSDEPTH_COVERAGE(
-        INPUT_CHECK.out.bams,
-	ch_sample_sets_all,
+        ch_input,
+        ch_sample_sets_all,
         fasta,
         fasta_fai,
-	genome_txt,
-	intervals_bed_combined
+        genome_txt,
+        intervals_bed_combined
     )
     ch_versions = ch_versions.mix(MOSDEPTH_COVERAGE.out.versions.first())
 
     ch_coverage_set_params = ch_coverage_set.map{
-	it -> [[it.id], it]
+        it -> [[it.id], it]
     }.join(MOSDEPTH_COVERAGE.out.stats.map{
-	it -> [[it.id], it]
+        it -> [[it.id], it]
     }, by: 0, remainder: true).map{
-	it, meta, stats ->
-	new_meta = [
-	    id: meta.id,
-	    sampleset_id: meta.sampleset_id,
-	    coverage_id: meta.coverage_id,
-	    samples: meta.samples,
-	    min: meta.min,
-	    max: meta.max,
-	]
-	if (meta.coverage_id == "auto") {
-	    new_meta.min = [stats.mean - 0.5 * stats.sd, 0].max()
-	    new_meta.max = stats.mean + 0.5 * stats.sd
-	}
-	new_meta
+        it, meta, stats ->
+        new_meta = [
+            id: meta.id,
+            sampleset_id: meta.sampleset_id,
+            coverage_id: meta.coverage_id,
+            samples: meta.samples,
+            min: meta.min,
+            max: meta.max,
+        ]
+        if (meta.coverage_id == "auto") {
+            new_meta.min = [stats.mean - 0.5 * stats.sd, 0].max()
+            new_meta.max = stats.mean + 0.5 * stats.sd
+        }
+        new_meta
     }
     // Given the coverage cutoffs generate coverage masks for
     // sampleset - coverage combinations. coverage_set contains all
     // possible coverage settings and should be combined with the
     // bedgraph file for each sample set
     ch_coverage_set_bed = MOSDEPTH_COVERAGE.out.sum_gz_tbi.map{
-	[it[0].sampleset_id, it]
+        [it[0].sampleset_id, it]
     }.cross(
-	ch_coverage_set_params.map{[it.sampleset_id, it]}
+        ch_coverage_set_params.map{[it.sampleset_id, it]}
     ).map{
-	it1, it2 ->
-	new_meta = it2[1]
-	bed = it1[1][1] // FIXME: make access more readable
-	[new_meta, bed]
+        it1, it2 ->
+        new_meta = it2[1]
+        bed = it1[1][1] // FIXME: make access more readable
+        [new_meta, bed]
     }
     CREATE_COVERAGE_MASKS(ch_coverage_set_bed)
     ch_versions = ch_versions.mix(CREATE_COVERAGE_MASKS.out.versions.first())
@@ -258,53 +257,55 @@ workflow MANTICORE {
     // generate lots of large genome mask files...
     coverage_masks = CREATE_COVERAGE_MASKS.out.gz_tbi
     CREATE_MASKS (
-     	PREPARE_GENOME.out.genome_bed,
-	fasta,
-	ch_roi,
-	coverage_masks,
+        PREPARE_GENOME.out.genome_bed,
+        fasta,
+        ch_roi,
+        coverage_masks,
     )
     ch_versions = ch_versions.mix(CREATE_MASKS.out.versions.first())
 
     // Expand mask file list to modes and combine with window sizes
-    if (params.window_sizes instanceof Integer) {
-	window_sizes = Channel.of(params.window_sizes)
-    } else {
-	window_sizes = Channel.of(params.window_sizes.split(","))
-    }
-    // All masks have a meta mode variable that is a list of either/or
-    // [site, window]. We cannot use branch as that will select only
-    // one output channel; rather the maskfiles must be transposed on
-    // mode. Transposition should be possible by adding mode as first
-    // element: [mode, meta, fasta]
-    CREATE_MASKS.out.cov_fasta.branch{
-	site: it[0].mode == "site"
-	window: it[0].mode == "window"
-    }.set{masks_set}
-    masks = masks_set.site.mix(
-	masks_set.window.combine(window_sizes).map{
-	    meta, fasta, size ->
-	    new_meta = meta
-	    new_meta.window_size = size
-	    [new_meta, fasta]
-	}
-    )
+    window_sizes = Channel.of(params.window_sizes.split(","))
+    masks = CREATE_MASKS.out.cov_fasta.map{
+        meta, fasta ->
+        new_meta = [
+            id: meta.id,
+        ]
+        [new_meta, meta.mode, fasta]
+    }.transpose(by: 1).map{
+        meta, mode, fasta ->
+        new_meta = [
+            id: meta.id,
+            mode: mode
+        ]
+        [new_meta, fasta]
+    }.combine(window_sizes).map{
+        meta, fasta, window ->
+        new_meta = [
+            id: meta.id,
+            mode: meta.mode,
+            window_size: meta.mode == "window" ? window : null
+        ]
+        [new_meta, fasta]
+    }.unique()
+
     VARIANT_SUMMARY(
-	vcf.map{[[id:"nucleotide_diversity.${vcf.baseName}"], it]},
-	masks
+        vcf.map{[[id:"nucleotide_diversity.${vcf.baseName}"], it]},
+        masks
     )
 
     process WRITE_SAMPLESET {
-	tag "$meta.id"
-	label 'process_single'
+        tag "$meta.id"
+        label 'process_single'
 
-	input:
-	tuple val(meta), val(samples)
+        input:
+        tuple val(meta), val(samples)
 
-	output:
-	tuple val(meta), path("*.txt"),   emit: txt
+        output:
+        tuple val(meta), path("*.txt"),   emit: txt
 
-	script:
-	"""
+        script:
+        """
         echo -e '${samples.join("\n")}' > ${meta.id}.txt
         """
     }
@@ -358,6 +359,31 @@ workflow.onComplete {
     if (params.hook_url) {
         NfcoreTemplate.IM_notification(workflow, params, summary_params, projectDir, log)
     }
+}
+
+
+/*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    FUNCTIONS
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*/
+
+// Function to get list of [ meta, bam ]
+def create_bam_channel(LinkedHashMap row) {
+    // create meta map
+    def meta = [:]
+    meta.id         = row.sample
+
+    // add path(s) of the fastq file(s) to the meta map
+    def bam_meta = []
+    if (!file(row.bam).exists()) {
+        exit 1, "ERROR: Please check input samplesheet -> bam file does not exist!\n${row.bam}"
+    }
+    if (!file(row.bai).exists()) {
+        exit 1, "ERROR: Please check input samplesheet -> bai file does not exist!\n${row.bai}"
+    }
+    bam_meta = [ meta, file(row.bam), file(row.bai) ]
+    return bam_meta
 }
 
 /*

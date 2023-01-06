@@ -26,24 +26,61 @@ jobs:
       matrix:
         NXF_VER:
           - "22.10.1"
-          - "22.10.4"
-          # - "latest-everything"
+          - "latest-everything"
+        profile: ["singularity", "mamba"]
+        exclude:
+          - NXF_VER: "latest-everything"
+            profile: "mamba"
+          - profile: "singularity"
     steps:
       - name: Check out pipeline code
         uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.x"
+
+      - uses: actions/cache@v2
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install Python dependencies
+        run: python -m pip install --upgrade pip pytest-workflow
+
+      - uses: actions/cache@v2
+        with:
+          path: /usr/local/bin/nextflow
+          key: ${{ runner.os }}
+          restore-keys: |
+            ${{ runner.os }}-nextflow-
 
       - name: Install Nextflow
         uses: nf-core/setup-nextflow@v1
         with:
           version: "${{ matrix.NXF_VER }}"
 
+      - name: Set up Singularity
+        if: matrix.profile == 'singularity'
+        uses: eWaterCycle/setup-singularity@v5
+        with:
+          singularity-version: 3.7.1
+
       - name: Create Conda environment
+        if: matrix.profile == 'mamba'
         uses: conda-incubator/setup-miniconda@v2
         with:
-          python-version: 3.9
+          auto-update-conda: true
           mamba-version: "*"
           channels: conda-forge,bioconda,defaults
           channel-priority: true
+
+      - name: Conda clean
+        if: matrix.profile == 'mamba'
+        run: conda clean -a
 
       - name: Setup test data
         run: |
@@ -51,5 +88,7 @@ jobs:
           cat ./data/data/ooa-outgroups/ooa.chr*.fa > ./data/data/ooa-outgroups/ref.fa
 
       - name: Run pipeline with test data
-        run: |
-          nextflow run ${GITHUB_WORKSPACE} -profile test,mamba -qs 1 --outdir ./results
+        uses: Wandalen/wretry.action@v1.0.11
+        with:
+          command: TMPDIR=~ PROFILE=test,${{ matrix.profile }} nextflow run ${GITHUB_WORKSPACE} -qs 2 -profile test,${{ matrix.profile }}
+          attempt_limit: 2

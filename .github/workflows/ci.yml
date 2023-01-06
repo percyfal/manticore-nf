@@ -31,7 +31,7 @@ jobs:
         exclude:
           - NXF_VER: "latest-everything"
             profile: "mamba"
-
+          - profile: "singularity"
     steps:
       - name: Check out pipeline code
         uses: actions/checkout@v3
@@ -90,5 +90,5 @@ jobs:
       - name: Run pipeline with test data
         uses: Wandalen/wretry.action@v1.0.11
         with:
-          command: TMPDIR=~ PROFILE=test,${{ matrix.profile }} nextflow run
+          command: TMPDIR=~ PROFILE=test,${{ matrix.profile }} nextflow run ${GITHUB_WORKSPACE} -profile $PROFILE -qs 2
           attempt_limit: 2

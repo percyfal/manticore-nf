@@ -29,7 +29,13 @@ def checkPathParamList = [
 */
 for (param in checkPathParamList) { if (param) { file(param, checkIfExists: true) } }
 
-if (params.input) { ch_input = file(params.input) } else { exit 1, 'Input samplesheet not specified!' }
+Channel.fromPath(params.input).splitCsv(header: true, sep: ',')
+    .map{ row ->
+	WorkflowManticore.validateSampleRow(workflow, row, log)
+	create_bam_channel(row)
+    }
+    .set{ch_input}
+
 if (params.intervals && !params.intervals.endsWith("bed") && !params.intervals.endsWith("list")) exit 1, "Intervals file must end with .bed, .list, or .interval_list"
 
 // Process roi_fof file
@@ -98,7 +104,6 @@ vcf                = params.vcf                ? Channel.fromPath(params.vcf).co
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
-include { INPUT_CHECK                                  } from '../subworkflows/local/input_check'
 include { PREPARE_GENOME                               } from '../subworkflows/local/prepare_genome/main'
 include { PREPARE_INTERVALS                            } from '../subworkflows/local/prepare_intervals/main'
 include { MOSDEPTH_COVERAGE                            } from '../subworkflows/local/mosdepth_coverage/main'
@@ -168,14 +173,9 @@ workflow MANTICORE {
     ch_versions = ch_versions.mix(PREPARE_GENOME.out.versions)
     ch_versions = ch_versions.mix(PREPARE_INTERVALS.out.versions)
 
-    //
-    // SUBWORKFLOW: Read in samplesheet, validate and stage input files
-    //
-    INPUT_CHECK (
-        ch_input
-    )
-    ch_versions = ch_versions.mix(INPUT_CHECK.out.versions)
-    ch_sample_sets_all = ch_sample_sets.mix(INPUT_CHECK.out.bams.map{[[id: "ALL"], it[0].id]}.groupTuple())
+    // Add ALL sample set
+    ch_sample_sets_all = ch_sample_sets.mix(ch_input.map{[[id: "ALL"], it[0].id]}.groupTuple())
+    ch_sample_sets_all.view()
     // Create empty coverage channel for all samplesets
     ch_sample_sets_coverage = ch_sample_sets_all.map{
 	meta, samples ->
@@ -204,7 +204,7 @@ workflow MANTICORE {
     // Summarize coverage for all sample sets. Retrieve mean, var, and
     // sd coverage. Transfer values to auto coverage set.
     MOSDEPTH_COVERAGE(
-        INPUT_CHECK.out.bams,
+	ch_input,
 	ch_sample_sets_all,
         fasta,
         fasta_fai,
@@ -337,6 +337,31 @@ workflow.onComplete {
     if (params.hook_url) {
         NfcoreTemplate.IM_notification(workflow, params, summary_params, projectDir, log)
     }
+}
+
+
+/*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    FUNCTIONS
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*/
+
+// Function to get list of [ meta, bam ]
+def create_bam_channel(LinkedHashMap row) {
+    // create meta map
+    def meta = [:]
+    meta.id         = row.sample
+
+    // add path(s) of the fastq file(s) to the meta map
+    def bam_meta = []
+    if (!file(row.bam).exists()) {
+        exit 1, "ERROR: Please check input samplesheet -> bam file does not exist!\n${row.bam}"
+    }
+    if (!file(row.bai).exists()) {
+        exit 1, "ERROR: Please check input samplesheet -> bai file does not exist!\n${row.bai}"
+    }
+    bam_meta = [ meta, file(row.bam), file(row.bai) ]
+    return bam_meta
 }
 
 /*

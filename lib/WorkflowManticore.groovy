@@ -55,28 +55,28 @@ class WorkflowManticore {
     }
 
     public static void validateSampleRow(workflow, row, log) {
-	def has_error = false
-	InputStream input_stream = new File("${workflow.projectDir}/assets/schema_input.json").newInputStream()
-	JSONObject raw_schema = new JSONObject(new JSONTokener(input_stream))
-	Schema schema = SchemaLoader.load(raw_schema)
-	def jsonParams = new JsonBuilder(row)
-	JSONObject params_json = new JSONObject(jsonParams.toString())
-	JSONArray params_json_array = new JSONArray()
-	params_json_array.put(params_json)
-	try {
-	    schema.validate(params_json_array)
-	} catch (ValidationException e) {
+        def has_error = false
+        InputStream input_stream = new File("${workflow.projectDir}/assets/schema_input.json").newInputStream()
+        JSONObject raw_schema = new JSONObject(new JSONTokener(input_stream))
+        Schema schema = SchemaLoader.load(raw_schema)
+        def jsonParams = new JsonBuilder(row)
+        JSONObject params_json = new JSONObject(jsonParams.toString())
+        JSONArray params_json_array = new JSONArray()
+        params_json_array.put(params_json)
+        try {
+            schema.validate(params_json_array)
+        } catch (ValidationException e) {
             println ''
             log.error 'ERROR: Validation of sample input failed'
             JSONObject exceptionJSON = e.toJSON()
-	    log.error row.toString()
-	    log.error(exceptionJSON.toString())
+            log.error row.toString()
+            log.error(exceptionJSON.toString())
             println ''
             has_error = true
-	}
-	if (has_error) {
-	    System.exit(1)
-	}
+        }
+        if (has_error) {
+            System.exit(1)
+        }
     }
 
     public static String methodsDescriptionText(run_workflow, mqc_methods_yaml) {

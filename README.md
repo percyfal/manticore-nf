@@ -30,21 +30,79 @@ Nextflow community!
 
 ## Pipeline summary
 
-1. Calculate coverage distribution from bam files with
-   [`mosdepth`](https://github.com/brentp/mosdepth)
+1. Calculate coverage distribution from bam files with [`mosdepth`](https://github.com/brentp/mosdepth)
 2. Generate sequence masks from coverage information
-3. WIP: Calculate genetic variation (pi, theta, S) with
-   [`vcftools`](https://vcftools.sourceforge.net/) for different
-   sequence masks and window sizes.
-4. TODO: Calculate within and between population differentiation statistics
-   (FST) with [`vcftools`](https://vcftools.sourceforge.net/) for
-   user-defined sample set configuration
-5. TODO: Make a preliminary principal component analysis (PCA) with
-   [`plink`](https://www.cog-genomics.org/plink/2.0/) to assess
-   population structure
-6. TODO: Estimate admixture components with
-   [`ADMIXTURE`](https://dalexander.github.io/admixture/index.html)
+3. WIP: Calculate genetic variation (pi, theta, S) with [`vcftools`](https://vcftools.sourceforge.net/) for different sequence masks and window sizes.
+4. WIP: Calculate within and between population differentiation statistics (FST) with [`vcftools`](https://vcftools.sourceforge.net/) for user-defined sample set configuration
+5. TODO: Make a preliminary principal component analysis (PCA) with [`plink`](https://www.cog-genomics.org/plink/2.0/) to assess population structure
+6. TODO: Estimate admixture components with [`ADMIXTURE`](https://dalexander.github.io/admixture/index.html)
 7. WIP: Run windowed selection scans (Tajima's D)
+
+## Input
+
+The workflow requires two inputs:
+
+1. vcf file with variants
+2. samplesheet - a comma-separated file with columns `sample_id`, `bam` file path, `bai` file path, e.g.,
+
+```bash
+sample,bam,bai
+YRI-1,data/YRI-1.chr22.bam,data/YRI-1.chr22.bam.bai
+YRI-2,data/YRI-2.chr22.bam,data/YRI-2.chr22.bam.bai
+CEU-1,data/CEU-1.chr22.bam,data/CEU-1.chr22.bam.bai
+CEU-2,data/CEU-2.chr22.bam,data/CEU-2.chr22.bam.bai
+```
+
+### Sample sets
+
+Samples can be grouped into sample sets (aka populations) and passed
+to the `--sample_sets` option. The sample set file is a tab-separated
+file consisting of two columns `sampleset_id` and a comma-separated
+column of sample names, e.g.,
+
+    YRI    YRI-1,YRI-2
+    CEU    CEU-1,CEU-2
+
+Sample sets listed in the input file will be pairwise compared where
+applicable (e.g., fst).
+
+A default sample set `ALL`, consisting of all samples, is
+automatically constructed.
+
+### Coverage filters
+
+Coverage filters are subsequently applied
+individually to all sample sets. An automatic coverage filter, denoted
+`auto`, is automatically applied where positions having coverage
+within the range coverage mean +/- 0.5 standard deviations are saved
+to bed files denoting regions that pass filtering. In addition, the
+options `--coverage_min` and `--coverage_max` allow setting manual
+filters, denoted `manual`, on a sampleset specific basis, e.g.,
+
+    --coverage_min ALL:3,YRI:2 --coverage_max ALL:20
+
+### Window analyses
+
+The option `--window_sizes` takes a comma-separated string of integers
+corresponding to window sizes what will be applied to window-based
+analyses:
+
+    --window_sizes 100000,500000
+
+### Regions of interest (ROI)
+
+The option `--roi_fof` is a comma-separated file consisting of a
+column denoting the type of analysis (`site` or `window`) and a path
+to a bed file defining regions of interest:
+
+    site,tests/resources/exons.bed
+    window,tests/resources/utr.bed
+
+Results are calculated for the ROI intersected with the coverage
+filtered regions.
+
+A default ROI, `genome`, corresponding to the entire genome, is added
+automatically for whole-genome analyses.
 
 ## Quick Start
 
@@ -54,44 +112,44 @@ Nextflow community!
 
 3. Download the pipeline and test it on a minimal dataset with a single command:
 
-   ```bash
-   nextflow run nf-core/manticore -profile test,YOURPROFILE --outdir <OUTDIR>
-   ```
+```bash
+nextflow run nf-core/manticore -profile test,YOURPROFILE --outdir <OUTDIR>
+```
 
-   Note that some form of configuration will be needed so that
-   Nextflow knows how to fetch the required software. This is usually
-   done in the form of a config profile (`YOURPROFILE` in the example
-   command above). You can chain multiple config profiles in a
-   comma-separated string.
+Note that some form of configuration will be needed so that
+Nextflow knows how to fetch the required software. This is usually
+done in the form of a config profile (`YOURPROFILE` in the example
+command above). You can chain multiple config profiles in a
+comma-separated string.
 
-   > - The pipeline comes with config profiles called `docker`,
-   >   `singularity`, `podman`, `shifter`, `charliecloud` and `conda`
-   >   which instruct the pipeline to use the named tool for software
-   >   management. For example, `-profile test,docker`. - Please check
-   >   [nf-core/configs](https://github.com/nf-core/configs#documentation)
-   >   to see if a custom config file to run nf-core pipelines already
-   >   exists for your Institute. If so, you can simply use `-profile
+> - The pipeline comes with config profiles called `docker`,
+>   `singularity`, `podman`, `shifter`, `charliecloud` and `conda`
+>   which instruct the pipeline to use the named tool for software
+>   management. For example, `-profile test,docker`. - Please check
+>   [nf-core/configs](https://github.com/nf-core/configs#documentation)
+>   to see if a custom config file to run nf-core pipelines already
+>   exists for your Institute. If so, you can simply use `-profile
 <institute>` in your command. This will enable either `docker`
-   >   or `singularity` and set the appropriate execution settings for
-   >   your local compute environment. - If you are using
-   >   `singularity`, please use the [`nf-core
+>   or `singularity` and set the appropriate execution settings for
+>   your local compute environment. - If you are using
+>   `singularity`, please use the [`nf-core
 download`](https://nf-co.re/tools/#downloading-pipelines-for-offline-use)
-   >   command to download images first, before running the pipeline.
-   >   Setting the [`NXF_SINGULARITY_CACHEDIR` or
-   >   `singularity.cacheDir`](https://www.nextflow.io/docs/latest/singularity.html?#singularity-docker-hub)
-   >   Nextflow options enables you to store and re-use the images
-   >   from a central location for future pipeline runs. - If you are
-   >   using `conda`, it is highly recommended to use the
-   >   [`NXF_CONDA_CACHEDIR` or
-   >   `conda.cacheDir`](https://www.nextflow.io/docs/latest/conda.html)
-   >   settings to store the environments in a central location for
-   >   future pipeline runs.
+>   command to download images first, before running the pipeline.
+>   Setting the [`NXF_SINGULARITY_CACHEDIR` or
+>   `singularity.cacheDir`](https://www.nextflow.io/docs/latest/singularity.html?#singularity-docker-hub)
+>   Nextflow options enables you to store and re-use the images
+>   from a central location for future pipeline runs. - If you are
+>   using `conda`, it is highly recommended to use the
+>   [`NXF_CONDA_CACHEDIR` or
+>   `conda.cacheDir`](https://www.nextflow.io/docs/latest/conda.html)
+>   settings to store the environments in a central location for
+>   future pipeline runs.
 
-4. Start running your own analysis!
+4.  Start running your own analysis!
 
-   ```bash
-   nextflow run nf-core/manticore --input samplesheet.csv --outdir <OUTDIR> --fasta reference.fasta -profile <docker/singularity/podman/shifter/charliecloud/conda/institute>
-   ```
+```bash
+nextflow run nf-core/manticore --input samplesheet.csv --outdir <OUTDIR> --fasta reference.fasta -profile <docker/singularity/podman/shifter/charliecloud/conda/institute>
+```
 
 ## Documentation
 

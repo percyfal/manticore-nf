@@ -91,4 +91,4 @@ jobs:
         uses: Wandalen/wretry.action@v1.0.11
         with:
           command: TMPDIR=~ PROFILE=test,${{ matrix.profile }} nextflow run ${GITHUB_WORKSPACE} -qs 2 -profile test,${{ matrix.profile }}
-          attempt_limit: 2
+          attempt_limit: 3

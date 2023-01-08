@@ -19,8 +19,9 @@ process FILTER_COVERAGE {
 
     script:
     def args = task.ext.args ?: ''
-    def min = meta.min ?: 0
-    def max = meta.max ?: 1e9
+    def min = meta.coverageset.min ?: 0
+    def max = meta.coverageset.max ?: 1e9
+
     """
     awk  -vFS="\t" -v OFS="\t" '{
         if (\$4 >= $min && \$4 <= $max) {print }

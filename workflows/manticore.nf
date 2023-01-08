@@ -126,7 +126,7 @@ include { PREPARE_GENOME                               } from '../subworkflows/l
 include { PREPARE_INTERVALS                            } from '../subworkflows/local/prepare_intervals/main'
 include { MOSDEPTH_COVERAGE                            } from '../subworkflows/local/mosdepth_coverage/main'
 include { CREATE_COVERAGE_MASKS                        } from '../subworkflows/local/create_coverage_masks/main'
-include { CREATE_MASKS                                 } from '../subworkflows/local/create_masks/main'
+include { CREATE_SEQUENCE_MASKS                                 } from '../subworkflows/local/create_sequence_masks/main'
 include { VARIANT_SUMMARY                              } from '../subworkflows/local/variant_summary/main'
 
 /*
@@ -239,24 +239,26 @@ workflow MANTICORE {
         bed = it1[1][1] // FIXME: make access more readable
         [new_meta, bed]
     }
-    CREATE_COVERAGE_MASKS(ch_coverage_set_bed)
+    genome_txt.view()
+    CREATE_COVERAGE_MASKS(ch_coverage_set_bed, genome_txt.map{meta, txt -> txt})
     ch_versions = ch_versions.mix(CREATE_COVERAGE_MASKS.out.versions.first())
     coverage_masks = CREATE_COVERAGE_MASKS.out.gz_tbi
 
     //
-    // SUBWORKFLOW: CREATE_MASKS: create mask files from input mask and
-    // coverages for single-population analyses
+    // SUBWORKFLOW: CREATE_SEQUENCE_MASKS: create sequence (i.e.
+    // fasta) mask files from input mask and coverages for
+    // single-population analyses
 
     // FIXME: Add sample-specific present/absent mask, e.g., at least
     // 50% samples in a population must have >0 (or other cutoff)
     // coverage.
-    CREATE_MASKS (
+    CREATE_SEQUENCE_MASKS (
         PREPARE_GENOME.out.genome_bed,
         fasta,
         ch_roi,
         coverage_masks,
     )
-    ch_versions = ch_versions.mix(CREATE_MASKS.out.versions.first())
+    ch_versions = ch_versions.mix(CREATE_SEQUENCE_MASKS.out.versions.first())
 
     // Expand mask file list to modes and combine with window sizes
     if (params.window_sizes instanceof Integer) {
@@ -264,7 +266,7 @@ workflow MANTICORE {
     } else {
         window_sizes = Channel.of(params.window_sizes.split(","))
     }
-    CREATE_MASKS.out.cov_fasta.branch{
+    CREATE_SEQUENCE_MASKS.out.cov_fasta.branch{
         window: it[0].mode == "window"
         site: it[0].mode == "site"
     }.set{masks_branch}

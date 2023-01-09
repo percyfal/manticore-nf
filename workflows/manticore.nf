@@ -168,11 +168,44 @@ workflow MANTICORE {
     ch_reports = Channel.empty()
     ch_versions = Channel.empty()
 
+
+
+    // Create sampleset files for vcftools pairs analyses
+    process WRITE_SAMPLESET {
+        tag "$meta.id"
+        label 'process_single'
+
+        input:
+        tuple val(meta), val(samples)
+
+        output:
+        tuple val(meta), val(samples), path("*.txt"),   emit: txt
+
+        script:
+        """
+        echo -e '${samples.join("\n")}' > ${meta.id}.txt
+        """
+    }
+
+    ch_sample_sets = WRITE_SAMPLESET(ch_sample_sets).map{
+        meta, samples, txt ->
+        new_meta = [
+            id: meta.id,
+            subset: meta.subset,
+            samples: samples,
+            txt: txt
+        ]
+        new_meta
+    }
+
     // Build indices
     PREPARE_GENOME(
         fasta,
         fasta_fai
     )
+    genome_bed = PREPARE_GENOME.out.genome_bed
+    // For now: always add genome bed to ch_roi.
+    ch_roi = ch_roi.mix(PREPARE_GENOME.out.genome_bed.map{[[id: "genome", mode: "site"], it[1]]}).mix(genome_bed.map{[[id: "genome", mode: "window"], it[1]]})
 
     // Gather built indices and resources
     dict               = params.fasta                   ? params.dict                       ? Channel.fromPath(params.dict).collect()                  : PREPARE_GENOME.out.dict                  : []

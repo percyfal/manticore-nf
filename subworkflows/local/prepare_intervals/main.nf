@@ -44,33 +44,33 @@ workflow PREPARE_INTERVALS {
         if (!params.intervals) {
 
             BUILD_INTERVALS(fasta_fai.map{it -> [[id:it.baseName], it]})
-	    ch_intervals_combined = BUILD_INTERVALS.out.bed
-	    ch_versions = ch_versions.mix(BUILD_INTERVALS.out.versions)
-	    if (params.num_intervals == null) {
-		ch_intervals = CREATE_INTERVALS_BED(ch_intervals_combined.map{meta, path -> path}).bed
-		ch_versions = ch_versions.mix(CREATE_INTERVALS_BED.out.versions)
-	    } else {
-		ch_intervals = PARTITION_BED(ch_intervals_combined.map{meta, path -> path}).bed
-		ch_versions = ch_versions.mix(PARTITION_BED.out.versions)
-	    }
+            ch_intervals_combined = BUILD_INTERVALS.out.bed
+            ch_versions = ch_versions.mix(BUILD_INTERVALS.out.versions)
+            if (params.num_intervals == null) {
+                ch_intervals = CREATE_INTERVALS_BED(ch_intervals_combined.map{meta, path -> path}).bed
+                ch_versions = ch_versions.mix(CREATE_INTERVALS_BED.out.versions)
+            } else {
+                ch_intervals = PARTITION_BED(ch_intervals_combined.map{meta, path -> path}).bed
+                ch_versions = ch_versions.mix(PARTITION_BED.out.versions)
+            }
 
         } else {
-	    ch_intervals_combined = Channel.fromPath(file(params.intervals)).map{it -> [[id:it.baseName], it] }
-	    if (params.num_intervals == null) {
-		ch_intervals = CREATE_INTERVALS_BED(file(params.intervals)).bed
-		ch_versions = ch_versions.mix(CREATE_INTERVALS_BED.out.versions)
-	    } else {
-		ch_intervals = PARTITION_BED(file(params.intervals)).bed
-		ch_versions = ch_versions.mix(PARTITION_BED.out.versions)
-	    }
-	    // If interval file is not provided as .bed, but e.g. as
-	    // .interval_list then convert to BED format; only for
-	    // combined regions
-	    if(params.intervals.endsWith(".interval_list")) {
+            ch_intervals_combined = Channel.fromPath(file(params.intervals)).map{it -> [[id:it.baseName], it] }
+            if (params.num_intervals == null) {
+                ch_intervals = CREATE_INTERVALS_BED(file(params.intervals)).bed
+                ch_versions = ch_versions.mix(CREATE_INTERVALS_BED.out.versions)
+            } else {
+                ch_intervals = PARTITION_BED(file(params.intervals)).bed
+                ch_versions = ch_versions.mix(PARTITION_BED.out.versions)
+            }
+            // If interval file is not provided as .bed, but e.g. as
+            // .interval_list then convert to BED format; only for
+            // combined regions
+            if(params.intervals.endsWith(".interval_list")) {
                 GATK4_INTERVALLISTTOBED(ch_intervals_combined)
                 ch_intervals_combined = GATK4_INTERVALLISTTOBED.out.bed
                 ch_versions = ch_versions.mix(GATK4_INTERVALLISTTOBED.out.versions)
-	    }
+            }
         }
 
         // Now for the interval.bed the following operations are done:
@@ -95,7 +95,7 @@ workflow PREPARE_INTERVALS {
             .flatten().collate(2)
             .map{duration, intervalFile -> intervalFile}
             .collect().map{ it ->
-                   [it, it.size() ] // Adding number of intervals as elements
+                [it, it.size() ] // Adding number of intervals as elements
                 }.transpose()
 
         // 2. Create bed.gz and bed.gz.tbi for each interval file. They are split by region (see above)
@@ -108,8 +108,6 @@ workflow PREPARE_INTERVALS {
         ch_versions = ch_versions.mix(TABIX_BGZIPTABIX_INTERVAL_SPLIT.out.versions)
 
     }
-
-    // BEDTOOLS_MASKFASTA_TEMPLATE(intervals_bed_combined, fasta)
 
     emit:
     intervals_bed               = ch_intervals                                           // path: intervals.bed, num_intervals                        [intervals split for parallel execution]

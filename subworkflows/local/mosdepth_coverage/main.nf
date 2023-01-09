@@ -73,11 +73,11 @@ workflow MOSDEPTH_COVERAGE {
     gz_tbi = TABIX_BGZIPTABIX_UNIONBEDG.out.gz_tbi
     // For some reason sampleset_id gets converted to sampleset unless
     // we apply this mapping?!?
-    TABIX_BGZIPTABIX_SUM_COVERAGE.out.gz_tbi.view()
+
     sum_gz_tbi = TABIX_BGZIPTABIX_SUM_COVERAGE.out.gz_tbi
         .map{
             sampleset, bed, gz ->
-            [[id: "${sampleset.id}.sum", sampleset: sampleset], bed]
+            [[id: "${sampleset.id}", sampleset: sampleset], bed]
         }
 
     coverage_stats = COVERAGE_STATS.out.stats.map{

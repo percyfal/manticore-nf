@@ -20,8 +20,6 @@ workflow CREATE_SEQUENCE_MASKS {
 
     ch_versions = Channel.empty()
 
-    // FIXME: move to bed masks Add genome_bed to mask_bed list
-    // mask_bed_combined = mask_bed.mix(genome_bed.map{[[id: "genome", mode: "site"], it[1]]}).mix(genome_bed.map{[[id: "genome", mode: "window"], it[1]]})
     mask_bed_grouped = mask_bed.groupTuple(by: 1).map{meta, bed -> [[id: meta[0].id, mode: meta.mode, bed: bed], bed]}
 
     // Make template mask file with all positions masked
@@ -38,20 +36,29 @@ workflow CREATE_SEQUENCE_MASKS {
     // masks, then create masks
     BEDTOOLS_INTERSECT(coverage_mask.combine(mask_bed_grouped).map{
         meta, bed, tbi, meta2, bed2 ->
-        new_meta = [
-            id: "${meta2.id}.${meta.id}",
-            subset: meta.subset,
-            mode: meta2.mode,
-            sampleset_id: meta.sampleset_id,
-            coverage_id: meta.coverage_id,
-            samples: meta.samples,
-            min: meta.min,
-            max: meta.max,
-            roi: bed2
-        ]
+        if (meta.containsKey("sampleset")) {
+            new_meta = [
+                id: "${meta.id}.${meta2.id}",
+                mode: meta2.mode,
+                sampleset: meta.sampleset,
+                coverageset: meta.coverageset,
+                roi: bed2,
+            ]
+        } else {
+            new_meta = [
+                id: "${meta.id}.${meta2.id}",
+                mode: meta2.mode,
+                sampleset1: meta.sampleset1,
+                sampleset2: meta.sampleset2,
+                coverageset1: meta.coverageset1,
+                coverageset2: meta.coverageset2,
+                roi: bed2,
+            ]
+        }
         [new_meta, bed, bed2]
     }, "bed")
     TABIX_BGZIPTABIX_COVERAGE_ROI(BEDTOOLS_INTERSECT.out.intersect)
+
     BEDTOOLS_MASKFASTA_UNMASK_COVERAGE(
         TABIX_BGZIPTABIX_COVERAGE_ROI.out.gz_tbi.map{
             meta, bed, tbi -> [meta, bed]
@@ -60,7 +67,6 @@ workflow CREATE_SEQUENCE_MASKS {
     )
 
     SEQKIT_SEQ_CONVERT_MULTILINE_FASTA_COVERAGE(BEDTOOLS_MASKFASTA_UNMASK_COVERAGE.out.fasta)
-
     // Transpose windows to list here.
     cov_fasta = SEQKIT_SEQ_CONVERT_MULTILINE_FASTA_COVERAGE.out.fasta.map{
         meta, fasta ->
@@ -70,18 +76,27 @@ workflow CREATE_SEQUENCE_MASKS {
         // This is insane. If I do new_meta = meta, new_meta.mode=mode
         // mode is incorrect?!? Probably need to set new_meta to avoid
         // concurrency issues?
-        new_meta = [
-            id: meta.id,
-            subset: meta.subset,
-            mode: mode,
-            sampleset_id: meta.sampleset_id,
-            coverage_id: meta.coverage_id,
-            samples: meta.samples,
-            min: meta.min,
-            max: meta.max,
-            roi: meta.roi,
-            window_size: null
-        ]
+        if (meta.containsKey("sampleset")) {
+            new_meta = [
+                id: meta.id,
+                mode: mode,
+                sampleset: meta.sampleset,
+                coverageset: meta.coverageset,
+                roi: meta.roi,
+                window_size: null
+            ]
+        } else {
+            new_meta = [
+                id: meta.id,
+                mode: mode,
+                sampleset1: meta.sampleset1,
+                sampleset2: meta.sampleset2,
+                coverageset1: meta.coverageset1,
+                coverageset2: meta.coverageset2,
+                roi: meta.roi,
+                window_size: null
+            ]
+        }
         [new_meta, fasta]
     }
 

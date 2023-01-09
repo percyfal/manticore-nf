@@ -79,33 +79,7 @@ if (params.coverage_max) {
     coverage_max = Channel.empty()
 }
 
-ch_coverage_set = coverage_min.join(coverage_max, remainder: true)
-    .join(ch_sample_sets.map{meta, samples -> [[id: meta.id], meta.subset, samples]})
-    .map{
-        meta, min, max, subset, samples ->
-        new_meta = [
-            id: "${meta.id}.manual",
-            subset: subset,
-            coverage_id: "manual",
-            sampleset_id: meta.id,
-            samples: samples,
-            min: min? min.min:null,
-            max: max? max.max:null,
-        ]
-    }
-    .mix(ch_sample_sets.map{
-            meta, samples ->
-            new_meta = [
-                id: "${meta.id}.auto",
-                subset: meta.subset,
-                coverage_id: "auto",
-                sampleset_id: meta.id,
-                samples: samples,
-                min: null,
-                max: null,
-            ]
-        }
-    )
+
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -127,6 +101,7 @@ include { PREPARE_INTERVALS                            } from '../subworkflows/l
 include { MOSDEPTH_COVERAGE                            } from '../subworkflows/local/mosdepth_coverage/main'
 include { CREATE_COVERAGE_MASKS                        } from '../subworkflows/local/create_coverage_masks/main'
 include { CREATE_SEQUENCE_MASKS                                 } from '../subworkflows/local/create_sequence_masks/main'
+include { CREATE_SEQUENCE_MASKS as CREATE_PAIRED_SEQUENCE_MASKS  } from '../subworkflows/local/create_sequence_masks/main'
 include { VARIANT_SUMMARY                              } from '../subworkflows/local/variant_summary/main'
 
 /*
@@ -198,6 +173,39 @@ workflow MANTICORE {
         new_meta
     }
 
+
+    ch_coverage_set = coverage_min.join(coverage_max, remainder: true)
+        .join(ch_sample_sets.map{meta -> [[id: meta.id], meta]})
+        .map{
+            meta, min, max, sampleset ->
+            new_meta = [
+                id: "${meta.id}.manual",
+                coverageset: [
+                    id: "${meta.id}.manual",
+                    mode: "manual",
+                    min: min ? min.min: null,
+                    max: max ? max.max: null,
+                ],
+                sampleset: sampleset,
+            ]
+        }
+        .mix(
+            ch_sample_sets
+                .map{
+                    meta ->
+                    new_meta = [
+                        id: "${meta.id}.auto",
+                        coverageset: [
+                            id: "${meta.id}.auto",
+                            mode: "auto",
+                            min: null,
+                            max: null,
+                        ],
+                        sampleset: meta,
+                    ]
+                }
+        )
+
     // Build indices
     PREPARE_GENOME(
         fasta,
@@ -235,48 +243,58 @@ workflow MANTICORE {
         intervals_bed_combined
     )
     ch_versions = ch_versions.mix(MOSDEPTH_COVERAGE.out.versions.first())
+    // FIXME: how does one ensure that a channel has completed?
+    ch_mosdepth_stats = MOSDEPTH_COVERAGE.out.stats
 
-    ch_coverage_set_params = ch_coverage_set.map{
+    // Set min, max range for auto coverage mode. Need to combine all
+    // elements in ch_coverage_set with those from auto mode.
+    // ch_coverage_set_w_params holds min, max for each coverage set
+    ch_coverage_set_w_params = ch_coverage_set.map{
         it -> [[it.id], it]
-    }.join(MOSDEPTH_COVERAGE.out.stats.map{
+    }.join(ch_mosdepth_stats.map{
         it -> [[it.id], it]
     }, by: 0, remainder: true).map{
         it, meta, stats ->
+        coverageset = meta.coverageset
+        if (coverageset.mode == "auto") {
+            coverageset.min = [stats.mean - 0.5 * stats.sd, 0].max()
+            coverageset.max = stats.mean + 0.5 * stats.sd
+        }
         new_meta = [
             id: meta.id,
-            subset: meta.subset,
-            sampleset_id: meta.sampleset_id,
-            coverage_id: meta.coverage_id,
-            samples: meta.samples,
-            min: meta.min,
-            max: meta.max,
+            coverageset: coverageset,
+            sampleset: meta.sampleset,
         ]
-        if (meta.coverage_id == "auto") {
-            new_meta.min = [stats.mean - 0.5 * stats.sd, 0].max()
-            new_meta.max = stats.mean + 0.5 * stats.sd
-        }
         new_meta
     }
 
-    // Given the coverage cutoffs generate coverage masks for
-    // sampleset - coverage combinations. coverage_set contains all
-    // possible coverage settings and should be combined with the
-    // bedgraph file for each sample set
-    ch_coverage_set_bed = MOSDEPTH_COVERAGE.out.sum_gz_tbi.map{
-        [it[0].sampleset_id, it]
-    }.cross(
-        ch_coverage_set_params.map{[it.sampleset_id, it]}
-    ).map{
-        it1, it2 ->
-        new_meta = it2[1]
-        bed = it1[1][1] // FIXME: make access more readable
-        [new_meta, bed]
-    }
-    genome_txt.view()
+    // Given the coverage cutoffs apply them to sum bed files to
+    // generate coverage masks for sampleset - coverage combinations.
+    // coverage_set contains all possible coverage settings and should
+    // be combined with the bedgraph file for each sample set
+    ch_coverage_set_bed = MOSDEPTH_COVERAGE.out.sum_gz_tbi
+        .map{
+            meta, bed ->
+            [meta.id, [sampleset:meta.sampleset, bed:bed]]
+        }
+        .combine(
+            ch_coverage_set_w_params.map{
+                [it.sampleset.id, [sampleset: it.sampleset, coverageset: it.coverageset]]
+            }, by:0
+        )
+        .map{
+            id, bed, coverage ->
+            new_meta = [
+                id: coverage.coverageset.id,
+                coverageset: coverage.coverageset,
+                sampleset: bed.sampleset,
+            ]
+            [new_meta, bed.bed]
+        }
     CREATE_COVERAGE_MASKS(ch_coverage_set_bed, genome_txt.map{meta, txt -> txt})
     ch_versions = ch_versions.mix(CREATE_COVERAGE_MASKS.out.versions.first())
     coverage_masks = CREATE_COVERAGE_MASKS.out.gz_tbi
-
+    paired_coverage_masks = CREATE_COVERAGE_MASKS.out.pairs_gz_tbi
     //
     // SUBWORKFLOW: CREATE_SEQUENCE_MASKS: create sequence (i.e.
     // fasta) mask files from input mask and coverages for
@@ -289,7 +307,7 @@ workflow MANTICORE {
         PREPARE_GENOME.out.genome_bed,
         fasta,
         ch_roi,
-        coverage_masks,
+        coverage_masks
     )
     ch_versions = ch_versions.mix(CREATE_SEQUENCE_MASKS.out.versions.first())
 
@@ -308,50 +326,53 @@ workflow MANTICORE {
             meta, fasta, window ->
             new_meta = [
                 id: meta.id,
-                subset: meta.subset,
                 mode: meta.mode,
-                sampleset_id: meta.sampleset_id,
-                coverage_id: meta.coverage_id,
-                samples: meta.samples,
-                min: meta.min,
-                max: meta.max,
+                sampleset: meta.sampleset,
+                coverage: meta.coverage,
                 roi: meta.roi,
                 window_size: meta.mode == "window" ? window : null
             ]
             [new_meta, fasta]
         }
         .mix(masks_branch.site)
-    VARIANT_SUMMARY(
-        vcf.map{[[id:"nucleotide_diversity.${vcf.baseName}"], it]},
-        masks
+
+
+    // Paired analyses
+    CREATE_PAIRED_SEQUENCE_MASKS (
+        PREPARE_GENOME.out.genome_bed,
+        fasta,
+        ch_roi,
+        paired_coverage_masks
     )
 
-    process WRITE_SAMPLESET {
-        tag "$meta.id"
-        label 'process_single'
+    CREATE_PAIRED_SEQUENCE_MASKS.out.cov_fasta.branch{
+        window: it[0].mode == "window"
+        site: it[0].mode == "site"
+    }.set{pairs_branch}
 
-        input:
-        tuple val(meta), val(samples)
+    pairs = pairs_branch.window.combine(window_sizes)
+        .map{
+            meta, fasta, window ->
+            new_meta = [
+                id: meta.id,
+                mode: meta.mode,
+                sampleset1: meta.sampleset1,
+                sampleset2: meta.sampleset2,
+                coverageset1: meta.coverageset1,
+                coverageset2: meta.coverageset2,
+                roi: meta.roi,
+                window_size: meta.mode == "window" ? window : null
+            ]
+            [new_meta, fasta]
+        }.mix(pairs_branch.site)
 
-        output:
-        tuple val(meta), path("*.txt"),   emit: txt
+    VARIANT_SUMMARY(
+        vcf.map{[[id:"nucleotide_diversity.${vcf.baseName}"], it]},
+        masks,
+        pairs
+    )
 
-        script:
-        """
-        echo -e '${samples.join("\n")}' > ${meta.id}.txt
-        """
-    }
-
-    // Create sampleset files for vcftools pairs analyses
-    WRITE_SAMPLESET(ch_sample_sets)
-    // Need specialized function for pairwise analyses. How to combine
-    // masks? E.g. pop1 vs pop2 - intersect the coverage masks?
-    masks.branch{
-        pair: it[0].subset == true
-        single: it[0].subset == false
-    }.set{masks_paired}
-    //masks_paired.pair.view()
-
+    ch_versions = ch_versions.mix(VARIANT_SUMMARY.out.versions.first())
     CUSTOM_DUMPSOFTWAREVERSIONS (
         ch_versions.unique().collectFile(name: 'collated_versions.yml')
     )

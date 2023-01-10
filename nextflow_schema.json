@@ -10,7 +10,7 @@
             "type": "object",
             "fa_icon": "fas fa-terminal",
             "description": "Define where the pipeline should find input data and save output data.",
-            "required": ["input", "outdir", "vcf"],
+            "required": ["outdir", "vcf"],
             "properties": {
                 "input": {
                     "type": "string",
@@ -149,7 +149,7 @@
                     "help_text": "Comma-separated file of file names, where each row consists\nof two columns: type of analysis (window or site) and path\nto a mask bed file that defines regions in which to perform\nanalyses.\n\nMask files define regions in which to perform analyses. The\nfile should consist of 4 columns CHROM, BEGIN, END, and\nNAME. The NAME column is used to stratify regions\n(potentially overlapping) to different analyses. For\ninstance, NAME=exon could define exons, whereas NAME=4d\ncould define four-fold degenerate sites that reside within\nexons.\n"
                 },
                 "window_sizes": {
-                    "type": "string",
+                    "type": ["string", "number"],
                     "fa_icon": "fas fa-scale-unbalanced",
                     "pattern": "^[0-9][0-9,]+[0-9]$",
                     "description": "Comma-separated string of window sizes for windowed analyses",

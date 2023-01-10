@@ -1,4 +1,4 @@
-process VCFTOOLS {
+process VCFTOOLS_FST {
     tag "$meta.id"
     label 'process_single'
 
@@ -106,12 +106,14 @@ process VCFTOOLS {
         ("$variant_file".endsWith(".vcf.gz")) ? "--gzvcf ${variant_file}" :
         ("$variant_file".endsWith(".bcf")) ? "--bcf ${variant_file}" : ''
 
+    def populations = (meta.containsKey('sampleset1')) ? "--weir-fst-pop ${meta.sampleset1.txt} --weir-fst-pop ${meta.sampleset2.txt} " : ''
+    def fst_window_size = (meta.containsKey('window_size')) ? (meta.window_size != null) ? "--fst-window-size ${meta.window_size}" : '' : ''
 
-    def indv = (meta.containsKey('sampleset')) ? meta.sampleset.samples.collect{ "--indv $it" }.join(' ') : ""
     """
     vcftools \\
         $input_file \\
-        $indv \\
+        $populations \\
+        $fst_window_size \\
         --out $prefix \\
         ${args_list.join(' ')} \\
         --mask $mask

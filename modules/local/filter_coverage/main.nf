@@ -2,7 +2,7 @@ process FILTER_COVERAGE {
     tag "$meta.id"
     label 'process_single'
 
-    conda (params.enable_conda ? "conda-forge::gawk=5.1.0" : null)
+    conda "conda-forge::gawk=5.1.0"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
         'https://depot.galaxyproject.org/singularity/gawk:5.1.0' :
         'quay.io/biocontainers/gawk:5.1.0' }"
@@ -19,8 +19,9 @@ process FILTER_COVERAGE {
 
     script:
     def args = task.ext.args ?: ''
-    def min = meta.min ?: 0
-    def max = meta.max ?: 1e9
+    def min = meta.coverageset.min ?: 0
+    def max = meta.coverageset.max ?: 1e9
+
     """
     awk  -vFS="\t" -v OFS="\t" '{
         if (\$4 >= $min && \$4 <= $max) {print }

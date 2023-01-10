@@ -78,9 +78,11 @@ jobs:
           channels: conda-forge,bioconda,defaults
           channel-priority: true
 
-      - name: Conda clean
+      - name: Conda clean and setup configuration
         if: matrix.profile == 'mamba'
-        run: conda clean -a
+        run: |
+          conda clean -a
+          conda config set disable_lockfile true
 
       - name: Setup test data
         run: |

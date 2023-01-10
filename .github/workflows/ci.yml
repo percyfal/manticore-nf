@@ -82,7 +82,7 @@ jobs:
         if: matrix.profile == 'mamba'
         run: |
           conda clean -a
-          conda config set disable_lockfile true
+          conda config --set disable_lockfile true
 
       - name: Setup test data
         run: |

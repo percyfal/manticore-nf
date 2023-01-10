@@ -109,13 +109,7 @@ process VCFTOOLS_FST {
     def populations = (meta.containsKey('sampleset1')) ? "--weir-fst-pop ${meta.sampleset1.txt} --weir-fst-pop ${meta.sampleset2.txt} " : ''
     def fst_window_size = (meta.containsKey('window_size')) ? (meta.window_size != null) ? "--fst-window-size ${meta.window_size}" : '' : ''
 
-    println " ${meta}"
-    println "$variant_file"
-    println "$populations"
-    println "window size: $fst_window_size"
-    println "mask: $mask"
     """
-
     vcftools \\
         $input_file \\
         $populations \\
